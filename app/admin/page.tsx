@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, isSuperAdmin } from "@/lib/espacio";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Users, Building2, Receipt, Activity, ArrowLeft, Clock, Check, X, UserCheck } from "lucide-react";
+import { Shield, Users, Building2, Receipt, Activity, ArrowLeft, Clock, Check, X, UserCheck, GraduationCap } from "lucide-react";
 import { LogoutButton } from "@/app/espacios/logout-button";
 import { cn } from "@/lib/utils";
 import { aprobarUsuario, rechazarUsuario } from "./actions";
@@ -93,11 +93,19 @@ export default async function AdminPage() {
       </header>
 
       <div className="max-w-6xl mx-auto p-6 space-y-6">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Shield className="h-7 w-7 text-primary" /> Administración
-          </h2>
-          <p className="text-muted-foreground">Control general de la plataforma. Solo tú ves esto.</p>
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight flex items-center gap-2">
+              <Shield className="h-7 w-7 text-primary" /> Administración
+            </h2>
+            <p className="text-muted-foreground">Control general de la plataforma. Solo tú ves esto.</p>
+          </div>
+          <Link
+            href="/admin/mentorias"
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary font-medium text-sm transition"
+          >
+            <GraduationCap className="h-4 w-4" /> Mentorías y asesorías
+          </Link>
         </div>
 
         {/* KPIs globales */}

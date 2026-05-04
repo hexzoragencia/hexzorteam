@@ -1,11 +1,11 @@
 import Link from "next/link";
-import { requireEspacio } from "@/lib/espacio";
+import { requireEspacio, isSuperAdmin } from "@/lib/espacio";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatMoney, relativeDate, cn } from "@/lib/utils";
 import { CATEGORIA_TIPOS, type CategoriaTipo } from "@/lib/types";
-import { TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight, AlertTriangle, Plus, Target, Clock, CheckCircle2, Calendar } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight, AlertTriangle, Plus, Target, Clock, CheckCircle2, Calendar, GraduationCap } from "lucide-react";
 import { MonthSelector } from "@/components/dashboard/month-selector";
 import { PieGastoPorTipo, PieLegend, BarTopCategorias, BarGastoDiario, LineAnualIngresoEgreso } from "@/components/dashboard/charts";
 import { hoyIso, formatHora, lunesDe, sumarDias } from "@/lib/fechas";
@@ -38,6 +38,23 @@ export default async function Dashboard({
         .select("*").eq("espacio_id", espacio.id).eq("fecha", hoyIso())
         .order("hora_inicio", { ascending: true, nullsFirst: false });
       tareasHoy = (tH ?? []) as Tarea[];
+    } catch { /* tabla aún no existe */ }
+  }
+
+  // Próximas clases de mentoría (solo si el usuario es superadmin y está en personal)
+  const esAdminUser = await isSuperAdmin();
+  type ClaseMentoria = {
+    id: string; titulo: string; fecha: string; hora: string | null; duracion_min: number | null;
+    estudiante_id: string; estudiante_nombre: string;
+  };
+  let proximasClasesMentoria: ClaseMentoria[] = [];
+  if (esAdminUser && espacio.tipo === "personal") {
+    try {
+      const { data: mc } = await supabase
+        .from("mentorias_proximas_clases")
+        .select("id, titulo, fecha, hora, duracion_min, estudiante_id, estudiante_nombre")
+        .limit(5);
+      proximasClasesMentoria = (mc ?? []) as ClaseMentoria[];
     } catch { /* tabla aún no existe */ }
   }
 
@@ -222,6 +239,11 @@ export default async function Dashboard({
 
       {/* Card "Hoy" — Próximas tareas (solo personal) */}
       {espacio.tipo === "personal" && tareasHoy.length > 0 && <TareasHoyCard tareas={tareasHoy} slug={espacio.slug} />}
+
+      {/* Próximas clases de mentoría — solo superadmin en personal */}
+      {esAdminUser && espacio.tipo === "personal" && proximasClasesMentoria.length > 0 && (
+        <ClasesMentoriaCard clases={proximasClasesMentoria} />
+      )}
 
       {/* KPIs grandes */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -539,6 +561,70 @@ function KpiCard({ title, value, subtitle, icon, color, progress, progressDanger
               progressDanger && progress > 80 ? "bg-warning" :
               "bg-primary"
             )} style={{ width: `${Math.min(progress, 100)}%` }} />
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+function ClasesMentoriaCard({ clases }: { clases: { id: string; titulo: string; fecha: string; hora: string | null; duracion_min: number | null; estudiante_id: string; estudiante_nombre: string }[] }) {
+  const hoyIsoStr = new Date().toISOString().slice(0, 10);
+  const fmtFecha = (iso: string) => {
+    if (iso === hoyIsoStr) return "Hoy";
+    const d = new Date(iso + "T00:00:00");
+    const ayer = new Date(); ayer.setDate(ayer.getDate() + 1);
+    if (d.toDateString() === ayer.toDateString()) return "Mañana";
+    return d.toLocaleDateString("es-CO", { weekday: "short", day: "2-digit", month: "short" });
+  };
+  const fmtHora = (h: string | null) => {
+    if (!h) return "";
+    const [hh, mm] = h.split(":").map(Number);
+    const ampm = hh >= 12 ? "pm" : "am";
+    const h12 = hh % 12 === 0 ? 12 : hh % 12;
+    return `${h12}:${String(mm).padStart(2, "0")}${ampm}`;
+  };
+  const hoy = clases.filter(c => c.fecha === hoyIsoStr);
+  const otras = clases.filter(c => c.fecha !== hoyIsoStr);
+
+  return (
+    <Card className="border-primary/30 bg-primary/5">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <GraduationCap className="h-5 w-5 text-primary" /> Próximas clases de mentoría
+          </CardTitle>
+          <Link href="/admin/mentorias" className="text-xs text-primary hover:underline">Ver todos →</Link>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {hoy.length > 0 && (
+          <div className="space-y-1.5">
+            <div className="text-[10px] uppercase tracking-wide text-primary font-semibold">Hoy</div>
+            {hoy.map(c => (
+              <Link key={c.id} href={`/admin/mentorias/${c.estudiante_id}`}
+                className="block p-3 rounded-md border-2 border-primary/30 bg-card hover:border-primary transition">
+                <div className="font-semibold text-sm">{c.titulo}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  {c.estudiante_nombre} {c.hora && `· ${fmtHora(c.hora)}`} {c.duracion_min && `· ${c.duracion_min}min`}
+                </div>
+              </Link>
+            ))}
+          </div>
+        )}
+        {otras.length > 0 && (
+          <div className="space-y-1">
+            {hoy.length > 0 && <div className="text-[10px] uppercase tracking-wide text-muted-foreground font-semibold pt-1">Próximas</div>}
+            {otras.slice(0, 4).map(c => (
+              <Link key={c.id} href={`/admin/mentorias/${c.estudiante_id}`}
+                className="flex items-center gap-2 text-sm py-1.5 hover:text-primary transition">
+                <Calendar className="h-3.5 w-3.5 text-primary shrink-0" />
+                <span className="font-medium">{fmtFecha(c.fecha)}</span>
+                {c.hora && <span className="text-muted-foreground">{fmtHora(c.hora)}</span>}
+                <span className="truncate">· {c.titulo}</span>
+                <span className="text-xs text-muted-foreground truncate ml-auto">{c.estudiante_nombre}</span>
+              </Link>
+            ))}
           </div>
         )}
       </CardContent>
