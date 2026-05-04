@@ -40,6 +40,14 @@ export async function isSuperAdmin(): Promise<boolean> {
   return data?.rol === "superadmin";
 }
 
+export async function getEstadoCuenta(): Promise<"pendiente" | "activo" | "rechazado" | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  const supabase = createClient();
+  const { data } = await supabase.from("perfiles").select("estado").eq("id", user.id).maybeSingle();
+  return (data?.estado as any) ?? null;
+}
+
 /**
  * Resuelve el espacio por slug y verifica acceso completo:
  * - usuario autenticado

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { getMisEspacios, getCurrentUser, isSuperAdmin } from "@/lib/espacio";
+import { getMisEspacios, getCurrentUser, isSuperAdmin, getEstadoCuenta } from "@/lib/espacio";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Building2, User, Lock, Plus, BookOpen, Shield } from "lucide-react";
@@ -10,6 +10,9 @@ import { LogoutButton } from "./logout-button";
 export default async function EspaciosPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+
+  const estado = await getEstadoCuenta();
+  if (estado === "pendiente" || estado === "rechazado") redirect("/esperando-aprobacion");
 
   const espacios = await getMisEspacios();
   const empresariales = espacios.filter((e) => e.tipo === "empresarial");

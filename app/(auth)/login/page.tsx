@@ -24,6 +24,23 @@ export default function LoginPage() {
     setError(null);
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) { setError(error.message); setLoading(false); return; }
+
+    // Verifica estado de la cuenta
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const { data: perfil } = await supabase.from("perfiles").select("estado").eq("id", user.id).maybeSingle();
+      if (perfil?.estado === "pendiente") {
+        router.push("/esperando-aprobacion");
+        return;
+      }
+      if (perfil?.estado === "rechazado") {
+        await supabase.auth.signOut();
+        setError("Tu solicitud de acceso fue rechazada. Contacta al administrador.");
+        setLoading(false);
+        return;
+      }
+    }
+
     router.push("/");
     router.refresh();
   };

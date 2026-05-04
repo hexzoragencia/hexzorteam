@@ -30,8 +30,8 @@ export default function RegisterPage() {
     });
     setLoading(false);
     if (error) { setError(error.message); return; }
-    setInfo("Cuenta creada. Entra con tu email y contraseña.");
-    setTimeout(() => router.push("/login"), 1500);
+    setInfo("Cuenta creada y enviada a aprobación. El administrador la revisará pronto. Cuando te apruebe, podrás entrar con tu email y contraseña.");
+    setTimeout(() => router.push("/login"), 4000);
   };
 
   return (
