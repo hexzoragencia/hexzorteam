@@ -3,11 +3,12 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getMisEspacios, getCurrentUser, isSuperAdmin, getEstadoCuenta } from "@/lib/espacio";
 import { createClient } from "@/lib/supabase/server";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, User, Lock, Plus, BookOpen, Shield } from "lucide-react";
+import { Building2, User, Lock, Plus, BookOpen, Shield, Sparkles, ArrowRight } from "lucide-react";
 import { LogoutButton } from "./logout-button";
 import { TourBienvenida } from "@/components/tour-bienvenida";
+import type { Espacio } from "@/lib/types";
 
 export default async function EspaciosPage() {
   const user = await getCurrentUser();
@@ -25,27 +26,35 @@ export default async function EspaciosPage() {
   const empresariales = espacios.filter((e) => e.tipo === "empresarial");
   const personales = espacios.filter((e) => e.tipo === "personal");
   const esAdmin = await isSuperAdmin();
+  const sinEspacios = espacios.length === 0;
+  const primerNombre = (perfil?.nombre ?? user.email ?? "").split(" ")[0];
 
   return (
-    <main className="min-h-screen bg-muted/30">
+    <main className="min-h-screen bg-gradient-to-b from-background to-muted/40">
       {tourPendiente && <TourBienvenida nombreUsuario={perfil?.nombre ?? user.email ?? ""} />}
-      <header className="border-b bg-background">
-        <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+
+      <header className="border-b bg-background/80 backdrop-blur sticky top-0 z-20">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <Image src="/icon.jpg" alt="Hexzor" width={36} height={36} priority />
+            <Image src="/icon.jpg" alt="Hexzor" width={32} height={32} priority className="rounded-lg" />
             <div>
-              <h1 className="font-bold tracking-tight">Hexzor</h1>
-              <p className="text-xs text-muted-foreground">Empresarial</p>
+              <h1 className="font-bold tracking-tight leading-none">Hexzor</h1>
+              <p className="text-[11px] text-muted-foreground hidden sm:block">{user.email}</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-muted-foreground hidden sm:inline">{user.email}</span>
+          <div className="flex items-center gap-1">
             <Button asChild size="sm" variant="ghost">
-              <Link href="/guia"><BookOpen className="h-4 w-4 mr-1" /><span className="hidden sm:inline">Guía</span></Link>
+              <Link href="/guia">
+                <BookOpen className="h-4 w-4 sm:mr-1.5" />
+                <span className="hidden sm:inline">Guía</span>
+              </Link>
             </Button>
             {esAdmin && (
               <Button asChild size="sm" variant="ghost" className="text-primary">
-                <Link href="/admin"><Shield className="h-4 w-4 mr-1" /><span className="hidden sm:inline">Admin</span></Link>
+                <Link href="/admin">
+                  <Shield className="h-4 w-4 sm:mr-1.5" />
+                  <span className="hidden sm:inline">Admin</span>
+                </Link>
               </Button>
             )}
             <LogoutButton />
@@ -53,69 +62,133 @@ export default async function EspaciosPage() {
         </div>
       </header>
 
-      <div className="max-w-5xl mx-auto p-6 space-y-8">
-        <div className="flex items-start justify-between flex-wrap gap-3">
-          <div>
-            <h2 className="text-3xl font-bold tracking-tight">Tus espacios</h2>
-            <p className="text-muted-foreground">Selecciona un espacio para entrar o crea uno nuevo.</p>
-          </div>
-          <Button asChild variant="outline" size="sm">
-            <Link href="/guia"><BookOpen className="h-4 w-4 mr-1" /> ¿Cómo funciona?</Link>
-          </Button>
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8 sm:py-10 space-y-8">
+        {/* Saludo */}
+        <div className="space-y-1">
+          <h2 className="text-3xl sm:text-4xl font-bold tracking-tight">
+            Hola{primerNombre ? `, ${primerNombre}` : ""} 👋
+          </h2>
+          <p className="text-muted-foreground">
+            {sinEspacios
+              ? "Aún no tienes espacios — crea el primero para arrancar."
+              : "Elige un espacio para entrar o crea uno nuevo."}
+          </p>
         </div>
 
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold flex items-center gap-2"><Building2 className="h-5 w-5" /> Empresarial</h3>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {empresariales.map((e) => (
-              <Link key={e.id} href={`/e/${e.slug}/dashboard`}>
-                <Card className="hover:border-primary transition-colors cursor-pointer">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Building2 className="h-5 w-5 text-primary" /> {e.nombre}
-                    </CardTitle>
-                    <CardDescription>Empresarial · {e.moneda}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-            {empresariales.length === 0 && (
-              <p className="text-sm text-muted-foreground">No tienes espacios empresariales todavía.</p>
-            )}
-          </div>
-        </section>
+        {/* Estado vacío grande */}
+        {sinEspacios && (
+          <Card className="border-2 border-dashed border-primary/30 bg-primary/5">
+            <CardContent className="py-10 text-center space-y-4">
+              <div className="mx-auto w-fit p-4 rounded-full bg-primary/15 text-primary">
+                <Sparkles className="h-8 w-8" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-xl font-semibold">¡Bienvenido a Hexzor!</h3>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                  Crea tu primer espacio: <b>Empresarial</b> para tu negocio o <b>Personal</b> para tu vida.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 justify-center pt-2">
+                <Button asChild size="lg">
+                  <Link href="/espacios/nuevo">
+                    <Plus className="h-4 w-4 mr-2" /> Crear mi primer espacio
+                  </Link>
+                </Button>
+                <Button asChild size="lg" variant="outline">
+                  <Link href="/guia">
+                    <BookOpen className="h-4 w-4 mr-2" /> ¿Cómo funciona?
+                  </Link>
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        <section className="space-y-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-lg font-semibold flex items-center gap-2"><User className="h-5 w-5" /> Personal <span className="text-xs text-muted-foreground font-normal">(privado · con PIN)</span></h3>
-            <Button asChild size="sm" variant="outline"><Link href="/espacios/nuevo"><Plus className="h-4 w-4 mr-1" /> Crear personal</Link></Button>
-          </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {personales.map((e) => (
-              <Link key={e.id} href={`/e/${e.slug}/dashboard`}>
-                <Card className="hover:border-primary transition-colors cursor-pointer">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <User className="h-5 w-5 text-primary" /> {e.nombre}
-                      {e.pin_hash && <Lock className="h-3.5 w-3.5 text-muted-foreground ml-auto" />}
-                    </CardTitle>
-                    <CardDescription>Personal · {e.moneda}</CardDescription>
-                  </CardHeader>
-                </Card>
-              </Link>
-            ))}
-            {personales.length === 0 && (
-              <Card className="border-dashed">
-                <CardContent className="pt-6 text-center text-sm text-muted-foreground">
-                  Aún no tienes espacio personal. <Link href="/espacios/nuevo" className="underline text-primary">Crea uno</Link> para gestionar tus finanzas privadas.
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </section>
+        {/* Empresarial */}
+        {!sinEspacios && (
+          <SectionEspacios
+            tipo="empresarial"
+            titulo="Empresarial"
+            subtitulo="Para tu negocio"
+            icon={<Building2 className="h-5 w-5" />}
+            espacios={empresariales}
+          />
+        )}
+
+        {/* Personal */}
+        {!sinEspacios && (
+          <SectionEspacios
+            tipo="personal"
+            titulo="Personal"
+            subtitulo="Privado · puedes proteger con PIN"
+            icon={<User className="h-5 w-5" />}
+            espacios={personales}
+          />
+        )}
       </div>
     </main>
+  );
+}
+
+function SectionEspacios({
+  tipo, titulo, subtitulo, icon, espacios,
+}: {
+  tipo: "empresarial" | "personal";
+  titulo: string;
+  subtitulo: string;
+  icon: React.ReactNode;
+  espacios: Espacio[];
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="flex items-end justify-between gap-3 flex-wrap">
+        <div>
+          <h3 className="text-lg sm:text-xl font-semibold flex items-center gap-2">
+            <span className="text-primary">{icon}</span> {titulo}
+          </h3>
+          <p className="text-xs text-muted-foreground">{subtitulo}</p>
+        </div>
+        <Button asChild size="sm" variant="ghost" className="text-primary">
+          <Link href={`/espacios/nuevo?tipo=${tipo}`}>
+            <Plus className="h-4 w-4 mr-1" /> Crear nuevo
+          </Link>
+        </Button>
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2">
+        {espacios.map((e) => (
+          <Link key={e.id} href={`/e/${e.slug}/dashboard`} className="group">
+            <Card className="hover:border-primary hover:shadow-md transition-all cursor-pointer h-full">
+              <CardContent className="p-5 flex items-center gap-4">
+                <div className={`shrink-0 rounded-lg p-3 ${tipo === "empresarial" ? "bg-primary/10 text-primary" : "bg-violet-500/10 text-violet-500"}`}>
+                  {tipo === "empresarial" ? <Building2 className="h-5 w-5" /> : <User className="h-5 w-5" />}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="font-semibold flex items-center gap-2 truncate">
+                    <span className="truncate">{e.nombre}</span>
+                    {e.pin_hash && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                  </div>
+                  <div className="text-xs text-muted-foreground">{tipo === "empresarial" ? "Empresarial" : "Personal"} · {e.moneda}</div>
+                </div>
+                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition shrink-0" />
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+
+        {espacios.length === 0 && (
+          <Card className="border-dashed col-span-full">
+            <CardContent className="py-6 text-center text-sm text-muted-foreground space-y-2">
+              <p>No tienes espacios {tipo}es todavía.</p>
+              <Button asChild size="sm" variant="outline">
+                <Link href={`/espacios/nuevo?tipo=${tipo}`}>
+                  <Plus className="h-3.5 w-3.5 mr-1" /> Crear {tipo}
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+      </div>
+    </section>
   );
 }

@@ -19,10 +19,10 @@ function slugify(s: string) {
     .slice(0, 40);
 }
 
-export function NuevoEspacioForm() {
+export function NuevoEspacioForm({ tipoInicial = "personal" }: { tipoInicial?: "personal" | "empresarial" }) {
   const router = useRouter();
   const supabase = createClient();
-  const [tipo, setTipo] = useState<"personal" | "empresarial">("personal");
+  const [tipo, setTipo] = useState<"personal" | "empresarial">(tipoInicial);
   const [nombre, setNombre] = useState("");
   const [moneda, setMoneda] = useState("COP");
   const [pin, setPin] = useState("");

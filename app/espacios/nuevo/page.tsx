@@ -4,9 +4,12 @@ import Link from "next/link";
 import { getCurrentUser } from "@/lib/espacio";
 import { NuevoEspacioForm } from "./form";
 
-export default async function NuevoEspacioPage() {
+export default async function NuevoEspacioPage({
+  searchParams,
+}: { searchParams: { tipo?: string } }) {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
+  const tipoInicial = searchParams.tipo === "empresarial" ? "empresarial" : "personal";
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -18,7 +21,7 @@ export default async function NuevoEspacioPage() {
         </div>
       </header>
       <div className="max-w-2xl mx-auto p-6">
-        <NuevoEspacioForm />
+        <NuevoEspacioForm tipoInicial={tipoInicial} />
       </div>
     </main>
   );
