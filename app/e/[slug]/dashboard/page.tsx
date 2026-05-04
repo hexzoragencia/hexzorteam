@@ -5,10 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { formatMoney, relativeDate, cn } from "@/lib/utils";
 import { CATEGORIA_TIPOS, type CategoriaTipo } from "@/lib/types";
-import { TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight, AlertTriangle, Plus, Target, Clock, CheckCircle2 } from "lucide-react";
+import { TrendingUp, TrendingDown, Wallet, ArrowUpRight, ArrowDownRight, AlertTriangle, Plus, Target, Clock, CheckCircle2, Calendar } from "lucide-react";
 import { MonthSelector } from "@/components/dashboard/month-selector";
 import { PieGastoPorTipo, PieLegend, BarTopCategorias, BarGastoDiario, LineAnualIngresoEgreso } from "@/components/dashboard/charts";
-import { hoyIso, formatHora } from "@/lib/fechas";
+import { hoyIso, formatHora, lunesDe, sumarDias } from "@/lib/fechas";
 import type { Tarea } from "@/lib/types";
 import { TAREA_TIPOS } from "@/lib/types";
 import { CoachCard } from "@/components/coach-card";
@@ -41,7 +41,14 @@ export default async function Dashboard({
     } catch { /* tabla aún no existe */ }
   }
 
-  const [{ data: txMes }, { data: txAno }, { data: txAll }, { data: cats }, { data: presMes }, { data: presAno }] = await Promise.all([
+  // Fechas para el corte "Hoy y los últimos días" — siempre actuales, independientes del mes seleccionado.
+  const hoyStr = hoyIso();
+  const ayerStr = sumarDias(hoyStr, -1);
+  const lunesStr = lunesDe(hoyStr);
+  const diaActual = now.getDate();
+  const mesActualIni = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+
+  const [{ data: txMes }, { data: txAno }, { data: txAll }, { data: cats }, { data: presMes }, { data: presAno }, { data: txReciente }] = await Promise.all([
     supabase.from("transacciones")
       .select("id,fecha,monto,descripcion,categoria_id,categorias(nombre,tipo)")
       .eq("espacio_id", espacio.id)
@@ -59,6 +66,11 @@ export default async function Dashboard({
       .eq("ano", ano).eq("mes", mes),
     supabase.from("presupuestos_mensuales").select("monto_esperado,mes,categorias(espacio_id,tipo)")
       .eq("ano", ano),
+    supabase.from("transacciones")
+      .select("id,fecha,monto,descripcion,categoria_id,categorias(nombre,tipo)")
+      .eq("espacio_id", espacio.id)
+      .gte("fecha", mesActualIni).lte("fecha", hoyStr)
+      .order("fecha", { ascending: false }),
   ]);
 
   type TxMes = { id: string; fecha: string; monto: number; descripcion: string | null; categoria_id: string | null; categorias: { nombre: string; tipo: CategoriaTipo } | null };
@@ -86,6 +98,18 @@ export default async function Dashboard({
   // ===== Capital all-time =====
   const sumAllTipo = (tipo: CategoriaTipo) => txAllL.filter(t => t.categorias?.tipo === tipo).reduce((s, t) => s + Number(t.monto), 0);
   const capital = sumAllTipo("ingreso") - TIPOS_GASTO.reduce((s, t) => s + sumAllTipo(t), 0) - sumAllTipo("ahorro");
+
+  // ===== Hoy y los últimos días (mes actual, no el mes seleccionado) =====
+  const txR = (txReciente ?? []) as unknown as TxMes[];
+  const isGastoTx = (t: TxMes) => !!t.categorias && t.categorias.tipo !== "ingreso";
+  const gastosHoy = txR.filter(t => t.fecha === hoyStr && isGastoTx(t)).reduce((s, t) => s + Number(t.monto), 0);
+  const gastosAyer = txR.filter(t => t.fecha === ayerStr && isGastoTx(t)).reduce((s, t) => s + Number(t.monto), 0);
+  const gastosSemana = txR.filter(t => t.fecha >= lunesStr && isGastoTx(t)).reduce((s, t) => s + Number(t.monto), 0);
+  const gastosMesActSum = txR.filter(t => isGastoTx(t)).reduce((s, t) => s + Number(t.monto), 0);
+  const promedioDiarioMes = diaActual > 0 ? gastosMesActSum / diaActual : 0;
+  const txHoyList = txR.filter(t => t.fecha === hoyStr);
+  const cantHoy = txHoyList.length;
+  const txAyerCount = txR.filter(t => t.fecha === ayerStr).length;
 
   // ===== "ASÍ SE VE TU DINERO" — tabla por tipo (mes) =====
   const resumenPorTipo = CATEGORIA_TIPOS.map(t => {
@@ -233,6 +257,69 @@ export default async function Dashboard({
           color={capital >= 0 ? "primary" : "destructive"}
         />
       </div>
+
+      {/* Hoy y los últimos días — siempre con datos actuales */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Calendar className="h-5 w-5 text-primary" /> Hoy y los últimos días
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <MiniKpi
+              label="Hoy"
+              value={formatMoney(gastosHoy, espacio.moneda)}
+              sub={cantHoy === 0 ? "Sin gastos" : `${cantHoy} ${cantHoy === 1 ? "transacción" : "transacciones"}`}
+              highlight={promedioDiarioMes > 0 && gastosHoy > promedioDiarioMes * 1.2}
+            />
+            <MiniKpi
+              label="Ayer"
+              value={formatMoney(gastosAyer, espacio.moneda)}
+              sub={txAyerCount === 0 ? "Sin gastos" : `${txAyerCount} ${txAyerCount === 1 ? "transacción" : "transacciones"}`}
+            />
+            <MiniKpi
+              label="Esta semana"
+              value={formatMoney(gastosSemana, espacio.moneda)}
+              sub={`Desde el lunes`}
+            />
+            <MiniKpi
+              label="Promedio diario"
+              value={formatMoney(promedioDiarioMes, espacio.moneda)}
+              sub="Mes en curso"
+            />
+          </div>
+
+          {txHoyList.length > 0 ? (
+            <div className="border-t pt-3">
+              <div className="text-xs uppercase tracking-wide text-muted-foreground font-semibold mb-2">Transacciones de hoy</div>
+              <ul className="divide-y">
+                {txHoyList.map((t) => {
+                  const isGasto = t.categorias && t.categorias.tipo !== "ingreso";
+                  const tInfo = t.categorias ? CATEGORIA_TIPOS.find((x) => x.value === t.categorias!.tipo) : null;
+                  return (
+                    <li key={t.id} className="py-2 flex justify-between items-center gap-3 text-sm">
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium truncate">{t.categorias?.nombre ?? t.descripcion ?? "Sin categoría"}</p>
+                        {t.descripcion && t.categorias?.nombre !== t.descripcion && (
+                          <p className="text-xs text-muted-foreground truncate">{tInfo?.emoji} {t.descripcion}</p>
+                        )}
+                      </div>
+                      <span className={cn("tabular-nums font-medium shrink-0", isGasto ? "text-destructive" : "text-success")}>
+                        {isGasto ? "-" : "+"}{formatMoney(Number(t.monto), espacio.moneda)}
+                      </span>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ) : (
+            <div className="border-t pt-3 text-sm text-muted-foreground">
+              Aún no has registrado nada hoy. <Link href={`/e/${espacio.slug}/transacciones`} className="text-primary underline">Registra una transacción</Link>.
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* "Así se ve tu dinero" — tabla por tipo */}
       <Card>
@@ -456,5 +543,23 @@ function KpiCard({ title, value, subtitle, icon, color, progress, progressDanger
         )}
       </CardContent>
     </Card>
+  );
+}
+
+function MiniKpi({ label, value, sub, highlight }: {
+  label: string; value: string; sub?: string; highlight?: boolean;
+}) {
+  return (
+    <div className={cn(
+      "rounded-lg border bg-card p-3 transition",
+      highlight && "border-warning/60 bg-warning/5"
+    )}>
+      <div className="text-xs uppercase tracking-wide text-muted-foreground font-medium">{label}</div>
+      <div className={cn(
+        "text-xl font-bold tabular-nums mt-1",
+        highlight ? "text-warning" : "text-foreground"
+      )}>{value}</div>
+      {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
+    </div>
   );
 }
