@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="bg-grad" cx="0.5" cy="0.5" r="0.7">
+      <stop offset="0%" stop-color="#0a1142"/>
+      <stop offset="100%" stop-color="#04062a"/>
+    </radialGradient>
+    <filter id="hex-glow" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="18" result="blur"/>
+      <feFlood flood-color="#2547ff" flood-opacity="1"/>
+      <feComposite in2="blur" operator="in" result="glow1"/>
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6" result="blur2"/>
+      <feFlood flood-color="#5b75ff" flood-opacity="1"/>
+      <feComposite in2="blur2" operator="in" result="glow2"/>
+      <feMerge>
+        <feMergeNode in="glow1"/>
+        <feMergeNode in="glow1"/>
+        <feMergeNode in="glow2"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="96" fill="url(#bg-grad)"/>
+  <g filter="url(#hex-glow)" fill="#ffffff">
+    <path d="M 96 96 L 336 96 L 416 176 L 416 232 L 208 232 L 96 152 Z"/>
+    <path d="M 416 416 L 176 416 L 96 336 L 96 280 L 304 280 L 416 360 Z"/>
+  </g>
+</svg>

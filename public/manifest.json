@@ -1,0 +1,13 @@
+{
+  "name": "Hexzor Empresarial",
+  "short_name": "Hexzor",
+  "description": "Panel de gestión integral · Hexzorteam",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#04062a",
+  "theme_color": "#2547ff",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }
+  ]
+}

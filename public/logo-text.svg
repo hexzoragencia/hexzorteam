@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 280 64" fill="none">
+  <defs>
+    <filter id="ltg" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="2.2"/>
+      <feFlood flood-color="#2547ff" flood-opacity="1"/>
+      <feComposite in2="SourceAlpha" operator="in"/>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+  <g filter="url(#ltg)" fill="currentColor">
+    <path d="M 6 8 L 36 8 L 46 18 L 46 25 L 20 25 L 6 15 Z"/>
+    <path d="M 46 56 L 16 56 L 6 46 L 6 39 L 32 39 L 46 49 Z"/>
+  </g>
+  <text x="62" y="44" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, sans-serif" font-size="30" font-weight="800" letter-spacing="-0.5" fill="currentColor">Hexzor</text>
+</svg>
