@@ -2,10 +2,12 @@ import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getMisEspacios, getCurrentUser, isSuperAdmin, getEstadoCuenta } from "@/lib/espacio";
+import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Building2, User, Lock, Plus, BookOpen, Shield } from "lucide-react";
 import { LogoutButton } from "./logout-button";
+import { TourBienvenida } from "@/components/tour-bienvenida";
 
 export default async function EspaciosPage() {
   const user = await getCurrentUser();
@@ -14,6 +16,11 @@ export default async function EspaciosPage() {
   const estado = await getEstadoCuenta();
   if (estado === "pendiente" || estado === "rechazado") redirect("/esperando-aprobacion");
 
+  const supabase = createClient();
+  const { data: perfil } = await supabase.from("perfiles")
+    .select("nombre, tour_completado").eq("id", user.id).maybeSingle();
+  const tourPendiente = perfil?.tour_completado === false;
+
   const espacios = await getMisEspacios();
   const empresariales = espacios.filter((e) => e.tipo === "empresarial");
   const personales = espacios.filter((e) => e.tipo === "personal");
@@ -21,6 +28,7 @@ export default async function EspaciosPage() {
 
   return (
     <main className="min-h-screen bg-muted/30">
+      {tourPendiente && <TourBienvenida nombreUsuario={perfil?.nombre ?? user.email ?? ""} />}
       <header className="border-b bg-background">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">

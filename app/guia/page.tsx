@@ -3,10 +3,13 @@ import Image from "next/image";
 import { redirect } from "next/navigation";
 import { getCurrentUser, getMisEspacios } from "@/lib/espacio";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { reiniciarTour } from "@/app/espacios/tour-actions";
+import { redirect as nextRedirect } from "next/navigation";
 import {
   Building2, User, LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard,
   Calculator, Settings, Sparkles, Calendar, Target, Clock, BookOpen, Bot, ArrowLeft,
-  Lock, Lightbulb, MessageCircle,
+  Lock, Lightbulb, MessageCircle, RefreshCw,
 } from "lucide-react";
 
 export default async function GuiaPage() {
@@ -38,11 +41,18 @@ export default async function GuiaPage() {
 
       <div className="max-w-4xl mx-auto p-6 space-y-8">
         {/* Intro */}
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">¿Para qué sirve cada cosa?</h2>
-          <p className="text-muted-foreground mt-2">
-            Hexzor es tu plataforma para tener orden total: finanzas personales + finanzas empresariales + productividad personal en un solo lugar. La idea es que escribas lo mínimo y la IA mantenga todo organizado por ti.
-          </p>
+        <div className="flex items-start justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">¿Para qué sirve cada cosa?</h2>
+            <p className="text-muted-foreground mt-2 max-w-2xl">
+              Hexzor es tu plataforma para tener orden total: finanzas personales + finanzas empresariales + productividad personal en un solo lugar. La idea es que escribas lo mínimo y la IA mantenga todo organizado por ti.
+            </p>
+          </div>
+          <form action={async () => { "use server"; await reiniciarTour(); nextRedirect("/espacios"); }}>
+            <Button type="submit" variant="outline" size="sm">
+              <RefreshCw className="h-4 w-4 mr-1" /> Ver tour de bienvenida
+            </Button>
+          </form>
         </div>
 
         {/* Concepto de espacios */}
