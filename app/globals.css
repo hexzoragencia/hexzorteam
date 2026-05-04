@@ -1,9 +1,12 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Lato:wght@400;700;900&family=Montserrat:wght@400;500;600;700;800&family=Nunito:wght@400;600;700;800&family=Open+Sans:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&family=Playfair+Display:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Poppins:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  :root {
+  :root,
+  :root[data-theme="azul"] {
     --background: 0 0% 100%;
     --foreground: 232 47% 8%;
     --card: 0 0% 100%;
@@ -24,74 +27,264 @@
     --success: 142 71% 45%;
     --warning: 38 92% 50%;
     --radius: 0.75rem;
+    --font-app: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --space-mult: 1;
   }
 
-  .dark, :root[data-theme="dark"] {
-    --background: 232 60% 5%;
+  /* Paletas originales — primary vibrante para acentos.
+     --aurora-* son derivados pastel solo para el fondo (multicolor de aurora boreal). */
+  :root[data-theme="azul"] {
+    --background: 228 60% 98%; --card: 228 50% 99.5%; --muted: 228 30% 95%; --border: 228 30% 90%; --input: 228 30% 90%;
+    --aurora-1: 220 80% 75%;
+    --aurora-2: 200 70% 80%;
+    --aurora-3: 180 60% 80%;
+  }
+  :root[data-theme="verde"] {
+    --primary: 142 71% 42%; --ring: 142 71% 42%;
+    --secondary: 142 60% 95%; --secondary-foreground: 142 80% 25%;
+    --accent: 142 60% 95%; --accent-foreground: 142 80% 25%;
+    --background: 142 50% 97%; --card: 142 40% 99%; --muted: 142 30% 94%; --border: 142 25% 88%; --input: 142 25% 88%;
+    --aurora-1: 145 55% 75%;
+    --aurora-2: 165 50% 80%;
+    --aurora-3: 90 50% 80%;
+  }
+  :root[data-theme="morado"] {
+    --primary: 270 80% 55%; --ring: 270 80% 55%;
+    --secondary: 270 60% 96%; --secondary-foreground: 270 80% 30%;
+    --accent: 270 60% 96%; --accent-foreground: 270 80% 30%;
+    --background: 270 60% 98%; --card: 270 50% 99.5%; --muted: 270 30% 95%; --border: 270 25% 90%; --input: 270 25% 90%;
+    --aurora-1: 270 60% 80%;
+    --aurora-2: 290 55% 82%;
+    --aurora-3: 250 60% 82%;
+  }
+  :root[data-theme="rosa"] {
+    --primary: 340 82% 55%; --ring: 340 82% 55%;
+    --secondary: 340 70% 96%; --secondary-foreground: 340 80% 30%;
+    --accent: 340 70% 96%; --accent-foreground: 340 80% 30%;
+    --background: 340 70% 98%; --card: 340 60% 99.5%; --muted: 340 30% 95%; --border: 340 25% 90%; --input: 340 25% 90%;
+    --aurora-1: 350 55% 82%;
+    --aurora-2: 15 55% 82%;
+    --aurora-3: 330 50% 85%;
+  }
+  :root[data-theme="naranja"] {
+    --primary: 24 95% 53%; --ring: 24 95% 53%;
+    --secondary: 24 90% 95%; --secondary-foreground: 24 80% 30%;
+    --accent: 24 90% 95%; --accent-foreground: 24 80% 30%;
+    --background: 24 80% 97%; --card: 24 70% 99%; --muted: 24 40% 94%; --border: 24 35% 88%; --input: 24 35% 88%;
+    --aurora-1: 25 80% 78%;
+    --aurora-2: 40 75% 80%;
+    --aurora-3: 15 70% 80%;
+  }
+  :root[data-theme="cyan"] {
+    --primary: 190 90% 45%; --ring: 190 90% 45%;
+    --secondary: 190 70% 95%; --secondary-foreground: 190 80% 25%;
+    --accent: 190 70% 95%; --accent-foreground: 190 80% 25%;
+    --background: 190 70% 97%; --card: 190 60% 99%; --muted: 190 30% 94%; --border: 190 25% 88%; --input: 190 25% 88%;
+    --aurora-1: 190 65% 78%;
+    --aurora-2: 205 60% 82%;
+    --aurora-3: 170 55% 80%;
+  }
+  :root[data-theme="negro"] {
+    --primary: 0 0% 12%; --ring: 0 0% 12%;
+    --secondary: 0 0% 96%; --secondary-foreground: 0 0% 12%;
+    --accent: 0 0% 96%; --accent-foreground: 0 0% 12%;
+    --background: 0 0% 97%; --card: 0 0% 99.5%; --muted: 0 0% 94%; --border: 0 0% 88%; --input: 0 0% 88%;
+    --aurora-1: 220 15% 80%;
+    --aurora-2: 0 0% 85%;
+    --aurora-3: 280 10% 82%;
+  }
+  :root[data-theme="marron"] {
+    --primary: 25 50% 35%; --ring: 25 50% 35%;
+    --secondary: 25 40% 95%; --secondary-foreground: 25 60% 25%;
+    --accent: 25 40% 95%; --accent-foreground: 25 60% 25%;
+    --background: 30 40% 96%; --card: 30 30% 99%; --muted: 30 25% 93%; --border: 30 20% 87%; --input: 30 20% 87%;
+    --aurora-1: 30 50% 80%;
+    --aurora-2: 25 40% 78%;
+    --aurora-3: 15 45% 80%;
+  }
+
+  /* Default cuando no hay data-theme: que también tenga --aurora-* para azul */
+  :root {
+    --aurora-1: 220 80% 75%;
+    --aurora-2: 200 70% 80%;
+    --aurora-3: 180 60% 80%;
+  }
+
+  /* Modo oscuro: solo fija el foreground y los textos. Cada tema oscuro abajo define su propio tinte. */
+  :root[data-mode="oscuro"] {
     --foreground: 0 0% 98%;
-    --card: 232 50% 8%;
     --card-foreground: 0 0% 98%;
-    --primary: 228 100% 65%;
-    --primary-foreground: 232 60% 5%;
-    --secondary: 232 30% 14%;
     --secondary-foreground: 0 0% 98%;
-    --muted: 232 30% 14%;
     --muted-foreground: 228 15% 65%;
-    --accent: 228 60% 18%;
-    --accent-foreground: 228 100% 80%;
     --destructive: 0 72% 56%;
     --destructive-foreground: 0 0% 98%;
-    --border: 232 30% 18%;
-    --input: 232 30% 18%;
-    --ring: 228 100% 65%;
     --success: 142 71% 50%;
     --warning: 38 92% 55%;
   }
 
+  /* Tinte oscuro por tema (fondo MUY oscuro con un toque del color) */
+  :root[data-mode="oscuro"][data-theme="azul"]    { --background: 228 40% 6%;  --card: 228 35% 9%;  --muted: 228 25% 14%; --accent: 228 50% 18%; --accent-foreground: 228 100% 80%; --border: 228 25% 18%; --input: 228 25% 18%; }
+  :root[data-mode="oscuro"][data-theme="verde"]   { --background: 142 35% 5%;  --card: 142 30% 9%;  --muted: 142 20% 14%; --accent: 142 40% 18%; --accent-foreground: 142 80% 80%;  --border: 142 20% 18%; --input: 142 20% 18%; }
+  :root[data-mode="oscuro"][data-theme="morado"]  { --background: 270 35% 6%;  --card: 270 30% 9%;  --muted: 270 20% 14%; --accent: 270 40% 18%; --accent-foreground: 270 80% 80%;  --border: 270 20% 18%; --input: 270 20% 18%; }
+  :root[data-mode="oscuro"][data-theme="rosa"]    { --background: 340 35% 6%;  --card: 340 30% 9%;  --muted: 340 20% 14%; --accent: 340 40% 18%; --accent-foreground: 340 80% 80%;  --border: 340 20% 18%; --input: 340 20% 18%; }
+  :root[data-mode="oscuro"][data-theme="naranja"] { --background: 24 30% 6%;   --card: 24 25% 9%;   --muted: 24 20% 14%;  --accent: 24 40% 18%;  --accent-foreground: 24 80% 80%;   --border: 24 20% 18%;  --input: 24 20% 18%; }
+  :root[data-mode="oscuro"][data-theme="cyan"]    { --background: 190 35% 5%;  --card: 190 30% 9%;  --muted: 190 20% 14%; --accent: 190 40% 18%; --accent-foreground: 190 80% 80%;  --border: 190 20% 18%; --input: 190 20% 18%; }
+  :root[data-mode="oscuro"][data-theme="negro"]   { --background: 0 0% 5%;     --card: 0 0% 8%;     --muted: 0 0% 14%;    --accent: 0 0% 18%;    --accent-foreground: 0 0% 95%;     --border: 0 0% 18%;    --input: 0 0% 18%; }
+  :root[data-mode="oscuro"][data-theme="marron"]  { --background: 25 25% 6%;   --card: 25 20% 9%;   --muted: 25 15% 14%;  --accent: 25 30% 18%;  --accent-foreground: 25 70% 80%;   --border: 25 15% 18%;  --input: 25 15% 18%; }
+
+  /* Modo auto: aplica el tema oscuro si el sistema lo pide */
   @media (prefers-color-scheme: dark) {
-    :root:not([data-theme="light"]) {
-      --background: 232 60% 5%;
+    :root[data-mode="auto"] {
       --foreground: 0 0% 98%;
-      --card: 232 50% 8%;
       --card-foreground: 0 0% 98%;
-      --primary: 228 100% 65%;
-      --primary-foreground: 232 60% 5%;
-      --secondary: 232 30% 14%;
       --secondary-foreground: 0 0% 98%;
-      --muted: 232 30% 14%;
       --muted-foreground: 228 15% 65%;
-      --accent: 228 60% 18%;
-      --accent-foreground: 228 100% 80%;
       --destructive: 0 72% 56%;
       --destructive-foreground: 0 0% 98%;
-      --border: 232 30% 18%;
-      --input: 232 30% 18%;
-      --ring: 228 100% 65%;
     }
+    :root[data-mode="auto"][data-theme="azul"]    { --background: 228 40% 6%;  --card: 228 35% 9%;  --muted: 228 25% 14%; --accent: 228 50% 18%; --accent-foreground: 228 100% 80%; --border: 228 25% 18%; --input: 228 25% 18%; }
+    :root[data-mode="auto"][data-theme="verde"]   { --background: 142 35% 5%;  --card: 142 30% 9%;  --muted: 142 20% 14%; --accent: 142 40% 18%; --accent-foreground: 142 80% 80%;  --border: 142 20% 18%; --input: 142 20% 18%; }
+    :root[data-mode="auto"][data-theme="morado"]  { --background: 270 35% 6%;  --card: 270 30% 9%;  --muted: 270 20% 14%; --accent: 270 40% 18%; --accent-foreground: 270 80% 80%;  --border: 270 20% 18%; --input: 270 20% 18%; }
+    :root[data-mode="auto"][data-theme="rosa"]    { --background: 340 35% 6%;  --card: 340 30% 9%;  --muted: 340 20% 14%; --accent: 340 40% 18%; --accent-foreground: 340 80% 80%;  --border: 340 20% 18%; --input: 340 20% 18%; }
+    :root[data-mode="auto"][data-theme="naranja"] { --background: 24 30% 6%;   --card: 24 25% 9%;   --muted: 24 20% 14%;  --accent: 24 40% 18%;  --accent-foreground: 24 80% 80%;   --border: 24 20% 18%;  --input: 24 20% 18%; }
+    :root[data-mode="auto"][data-theme="cyan"]    { --background: 190 35% 5%;  --card: 190 30% 9%;  --muted: 190 20% 14%; --accent: 190 40% 18%; --accent-foreground: 190 80% 80%;  --border: 190 20% 18%; --input: 190 20% 18%; }
+    :root[data-mode="auto"][data-theme="negro"]   { --background: 0 0% 5%;     --card: 0 0% 8%;     --muted: 0 0% 14%;    --accent: 0 0% 18%;    --accent-foreground: 0 0% 95%;     --border: 0 0% 18%;    --input: 0 0% 18%; }
+    :root[data-mode="auto"][data-theme="marron"]  { --background: 25 25% 6%;   --card: 25 20% 9%;   --muted: 25 15% 14%;  --accent: 25 30% 18%;  --accent-foreground: 25 70% 80%;   --border: 25 15% 18%;  --input: 25 15% 18%; }
   }
 
+  /* Densidad: multiplicador de espaciados */
+  :root[data-density="compacta"]  { --space-mult: 0.75; }
+  :root[data-density="normal"]    { --space-mult: 1; }
+  :root[data-density="espaciada"] { --space-mult: 1.25; }
+
+  /* Fuentes */
+  :root[data-font="Inter"]              { --font-app: "Inter", sans-serif; }
+  :root[data-font="Poppins"]            { --font-app: "Poppins", sans-serif; }
+  :root[data-font="Roboto"]             { --font-app: "Roboto", sans-serif; }
+  :root[data-font="Montserrat"]         { --font-app: "Montserrat", sans-serif; }
+  :root[data-font="Open Sans"]          { --font-app: "Open Sans", sans-serif; }
+  :root[data-font="Lato"]               { --font-app: "Lato", sans-serif; }
+  :root[data-font="Nunito"]             { --font-app: "Nunito", sans-serif; }
+  :root[data-font="Plus Jakarta Sans"]  { --font-app: "Plus Jakarta Sans", sans-serif; }
+  :root[data-font="Outfit"]             { --font-app: "Outfit", sans-serif; }
+  :root[data-font="Playfair Display"]   { --font-app: "Playfair Display", serif; }
+
   * { @apply border-border; }
-  body {
-    @apply bg-background text-foreground;
-    font-feature-settings: "rlig" 1, "calt" 1, "cv11" 1;
-  }
   html {
-    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    background: hsl(var(--background));
     -webkit-font-smoothing: antialiased;
+  }
+  body {
+    @apply text-foreground;
+    background: transparent;
+    font-family: var(--font-app);
+    font-feature-settings: "rlig" 1, "calt" 1, "cv11" 1;
+    position: relative;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ───── Aurora boreal real: bandas de luz curvadas con varios tonos ───── */
+  html::before,
+  html::after {
+    content: "";
+    position: fixed;
+    inset: -15%;
+    z-index: 0;
+    pointer-events: none;
+    will-change: transform;
+    filter: blur(40px) saturate(1.2);
+  }
+
+  /* Banda principal: diagonal arriba-derecha → abajo-izquierda con 3 colores (sutil) */
+  html::before {
+    background:
+      linear-gradient(115deg,
+        transparent 0%,
+        transparent 15%,
+        hsl(var(--aurora-1) / 0.25) 30%,
+        hsl(var(--aurora-2) / 0.22) 42%,
+        hsl(var(--aurora-3) / 0.20) 55%,
+        transparent 75%,
+        transparent 100%
+      );
+    animation: aurora-flow-1 18s ease-in-out infinite alternate;
+  }
+
+  /* Banda secundaria: ángulo opuesto, aún más suave */
+  html::after {
+    background:
+      linear-gradient(-65deg,
+        transparent 10%,
+        hsl(var(--aurora-2) / 0.16) 35%,
+        hsl(var(--aurora-1) / 0.18) 48%,
+        hsl(var(--aurora-3) / 0.14) 60%,
+        transparent 80%
+      ),
+      radial-gradient(ellipse 80% 30% at 50% 100%,
+        hsl(var(--aurora-3) / 0.14) 0%,
+        transparent 70%
+      );
+    animation: aurora-flow-2 24s ease-in-out infinite alternate-reverse;
+  }
+
+  /* El contenido va POR ENCIMA de la aurora */
+  body > * { position: relative; z-index: 1; }
+
+  /* Modo oscuro: la aurora destaca aún más sobre fondo negro */
+  :root[data-mode="oscuro"] html::before,
+  :root[data-mode="oscuro"] html::after { filter: blur(40px) saturate(1.5) brightness(1.1); }
+
+  @media (prefers-color-scheme: dark) {
+    :root[data-mode="auto"] html::before,
+    :root[data-mode="auto"] html::after { filter: blur(40px) saturate(1.5) brightness(1.1); }
+  }
+
+  /* Animaciones de oleaje horizontal y vertical sutil — evocan el movimiento real de auroras */
+  @keyframes aurora-flow-1 {
+    0%   { transform: translate3d(0, 0, 0) skewY(-2deg); }
+    50%  { transform: translate3d(-3%, 2%, 0) skewY(1deg); }
+    100% { transform: translate3d(2%, -3%, 0) skewY(-1deg); }
+  }
+  @keyframes aurora-flow-2 {
+    0%   { transform: translate3d(0, 0, 0) skewY(2deg); }
+    50%  { transform: translate3d(3%, -2%, 0) skewY(-1deg); }
+    100% { transform: translate3d(-2%, 3%, 0) skewY(1deg); }
+  }
+
+  /* Respeta a quien prefiere menos movimiento */
+  @media (prefers-reduced-motion: reduce) {
+    html::before, html::after { animation: none; }
+  }
+
+  /* ───── Avatar del coach: flotar suave + sombra que cambia con el flote ───── */
+  @keyframes coach-float {
+    0%, 100% { transform: translateY(0); }
+    50%      { transform: translateY(-8px); }
+  }
+  @keyframes coach-shadow {
+    0%, 100% { transform: translateX(-50%) scaleX(1);   opacity: 0.4; }
+    50%      { transform: translateX(-50%) scaleX(0.8); opacity: 0.25; }
+  }
+  .animate-coach-float  { animation: coach-float 3.5s ease-in-out infinite; }
+  .animate-coach-shadow { animation: coach-shadow 3.5s ease-in-out infinite; transform-origin: center; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-coach-float, .animate-coach-shadow { animation: none; }
   }
 }
 
 @layer components {
   .brand-gradient {
-    background: linear-gradient(135deg, #2547ff 0%, #5b75ff 100%);
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary) / 0.7) 100%);
   }
   .brand-text {
-    background: linear-gradient(135deg, #5b75ff 0%, #2547ff 100%);
+    background: linear-gradient(135deg, hsl(var(--primary) / 0.85) 0%, hsl(var(--primary)) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
   }
   .brand-glow {
-    box-shadow: 0 0 24px -2px rgba(37, 71, 255, 0.4);
+    box-shadow: 0 0 24px -2px hsl(var(--primary) / 0.4);
   }
 }

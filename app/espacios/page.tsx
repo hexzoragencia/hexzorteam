@@ -20,7 +20,7 @@ export default async function EspaciosPage() {
       <header className="border-b bg-background">
         <div className="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Image src="/icon.svg" alt="Hexzor" width={36} height={36} priority />
+            <Image src="/icon.jpg" alt="Hexzor" width={36} height={36} priority />
             <div>
               <h1 className="font-bold tracking-tight">Hexzor</h1>
               <p className="text-xs text-muted-foreground">Empresarial</p>

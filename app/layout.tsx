@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { getPreferenciasUsuario } from "@/lib/preferencias-server";
 
 export const metadata: Metadata = {
   title: "Hexzor Empresarial",
@@ -15,9 +16,16 @@ export const viewport: Viewport = {
   maximumScale: 1,
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const prefs = await getPreferenciasUsuario();
   return (
-    <html lang="es">
+    <html
+      lang="es"
+      data-theme={prefs.tema}
+      data-mode={prefs.modo}
+      data-font={prefs.fuente}
+      data-density={prefs.densidad}
+    >
       <body>{children}</body>
     </html>
   );

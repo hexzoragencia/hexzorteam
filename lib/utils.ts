@@ -6,11 +6,13 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 const SYMBOLS: Record<string, string> = { COP: "$", MXN: "$", USD: "$", EUR: "€", CLP: "$" };
+const LOCALES: Record<string, string> = { COP: "es-CO", MXN: "es-MX", USD: "en-US", EUR: "es-ES", CLP: "es-CL" };
 
 export function formatMoney(value: number, currency = "COP") {
   const symbol = SYMBOLS[currency] ?? "$";
+  const locale = LOCALES[currency] ?? "es-CO";
   const fixed = currency === "EUR" || currency === "USD" ? 2 : 0;
-  return `${symbol}${value.toLocaleString("es-CO", { maximumFractionDigits: fixed, minimumFractionDigits: fixed })}`;
+  return `${symbol}${value.toLocaleString(locale, { maximumFractionDigits: fixed, minimumFractionDigits: fixed })}`;
 }
 
 export function formatPct(value: number) {

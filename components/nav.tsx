@@ -5,33 +5,72 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard,
-  Calculator, Settings, LogOut, Menu, X, ChevronDown, Building2, User, Lock, Plus,
+  Calculator, Settings, LogOut, Menu, X, ChevronDown, ChevronRight, ChevronLeft,
+  Building2, User, Lock, Plus, BookOpenCheck, Palette, Sparkles, Rocket, Target, CalendarDays,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Espacio } from "@/lib/types";
 
 const ICONS: Record<string, any> = {
-  LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard, Calculator, Settings,
+  LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard, Calculator, Settings, BookOpenCheck, Palette, Sparkles, Rocket, Target, CalendarDays, Building2,
 };
 
-const ITEMS = (tipo: "empresarial" | "personal") => {
-  const base = [
-    { href: "dashboard",     label: "Dashboard",     icon: "LayoutDashboard" },
-    { href: "transacciones", label: "Transacciones", icon: "Receipt" },
-    { href: "presupuesto",   label: "Presupuesto",   icon: "Wallet" },
-    { href: "categorias",    label: "Categorías",    icon: "Tags" },
-    { href: "fondos",        label: "Fondos",        icon: "PiggyBank" },
-    { href: "deudas",        label: "Deudas",        icon: "CreditCard" },
+type NavItem = { href: string; label: string; icon: string };
+type NavGroup = { id: string; label: string; icon: string; items: NavItem[] };
+type NavEntry = { kind: "item"; item: NavItem } | { kind: "group"; group: NavGroup };
+
+function buildNav(tipo: "empresarial" | "personal"): NavEntry[] {
+  const dashboard: NavEntry = { kind: "item", item: { href: "dashboard", label: "Dashboard", icon: "LayoutDashboard" } };
+
+  const contabilidad: NavGroup = {
+    id: "contabilidad",
+    label: "Contabilidad",
+    icon: "BookOpenCheck",
+    items: [
+      { href: "transacciones", label: "Transacciones", icon: "Receipt" },
+      { href: "presupuesto",   label: "Presupuesto",   icon: "Wallet" },
+      { href: "categorias",    label: "Categorías",    icon: "Tags" },
+      { href: "fondos",        label: "Fondos",        icon: "PiggyBank" },
+      { href: "deudas",        label: "Deudas",        icon: "CreditCard" },
+    ],
+  };
+
+  const ajustesItems: NavItem[] = [
+    { href: "espacio",    label: "Datos del espacio", icon: "Building2" },
+    { href: "apariencia", label: "Apariencia", icon: "Palette" },
   ];
   if (tipo === "empresarial") {
-    base.push({ href: "calculadora",   label: "Calculadora",   icon: "Calculator" });
-    base.push({ href: "configuracion", label: "Configuración", icon: "Settings" });
+    ajustesItems.push({ href: "configuracion", label: "Calculadora config", icon: "Settings" });
   }
-  return base;
-};
+  const ajustes: NavGroup = { id: "ajustes", label: "Ajustes", icon: "Settings", items: ajustesItems };
+
+  const productividad: NavGroup = {
+    id: "productividad",
+    label: "Productividad",
+    icon: "Rocket",
+    items: [
+      { href: "planeacion", label: "Planeación", icon: "CalendarDays" },
+      { href: "habitos",    label: "Hábitos",    icon: "Sparkles" },
+      { href: "objetivos",  label: "Objetivos",  icon: "Target" },
+    ],
+  };
+
+  const entries: NavEntry[] = [dashboard, { kind: "group", group: contabilidad }];
+
+  if (tipo === "personal") {
+    entries.push({ kind: "group", group: productividad });
+  }
+
+  if (tipo === "empresarial") {
+    entries.push({ kind: "item", item: { href: "calculadora", label: "Calculadora", icon: "Calculator" } });
+  }
+
+  entries.push({ kind: "group", group: ajustes });
+  return entries;
+}
 
 export function Nav({
   espacioActual, espacios, userEmail,
@@ -44,9 +83,40 @@ export function Nav({
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({});
+  const [hydrated, setHydrated] = useState(false);
   const supabase = createClient();
 
-  const items = ITEMS(espacioActual.tipo);
+  const entries = buildNav(espacioActual.tipo);
+
+  // Hidratar estado de colapsado desde localStorage
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem("nav-collapsed");
+      if (raw) setCollapsed(JSON.parse(raw));
+    } catch { /* ignore */ }
+    setHydrated(true);
+  }, []);
+
+  // Persistir cambios
+  useEffect(() => {
+    if (!hydrated) return;
+    try { localStorage.setItem("nav-collapsed", JSON.stringify(collapsed)); } catch { /* ignore */ }
+  }, [collapsed, hydrated]);
+
+  function toggle(id: string) {
+    setCollapsed(c => ({ ...c, [id]: !c[id] }));
+  }
+
+  // Un grupo está abierto si NO está colapsado, o si tiene un item activo (auto-expandir)
+  function isGroupOpen(g: NavGroup) {
+    const hasActive = g.items.some(it => {
+      const href = `/e/${espacioActual.slug}/${it.href}`;
+      return pathname === href || pathname.startsWith(href + "/");
+    });
+    if (hasActive) return true;
+    return !collapsed[g.id];
+  }
 
   const logout = async () => {
     await supabase.auth.signOut();
@@ -54,15 +124,40 @@ export function Nav({
     router.refresh();
   };
 
+  const renderItem = (it: NavItem, depth = 0) => {
+    const href = `/e/${espacioActual.slug}/${it.href}`;
+    const active = pathname === href || pathname.startsWith(href + "/");
+    const Icon = ICONS[it.icon];
+    return (
+      <Link
+        key={it.href}
+        href={href}
+        onClick={() => setOpen(false)}
+        className={cn(
+          "flex items-center gap-3 rounded-md text-sm font-medium transition-colors",
+          depth === 0 ? "px-3 py-2.5" : "pl-9 pr-3 py-2",
+          active ? "bg-primary text-primary-foreground brand-glow" : "hover:bg-accent hover:text-accent-foreground"
+        )}
+      >
+        <Icon className={cn(depth === 0 ? "h-4 w-4" : "h-3.5 w-3.5")} />
+        {it.label}
+      </Link>
+    );
+  };
+
   const SidebarContent = (
     <>
-      <div className="hidden md:flex h-16 items-center gap-3 px-5 border-b">
-        <Image src="/icon.svg" alt="Hexzor" width={32} height={32} priority />
+      <Link
+        href={`/e/${espacioActual.slug}/dashboard`}
+        onClick={() => setOpen(false)}
+        className="hidden md:flex h-16 items-center gap-3 px-5 border-b hover:bg-accent transition-colors"
+      >
+        <Image src="/icon.jpg" alt="Hexzor" width={32} height={32} priority />
         <div className="flex flex-col leading-tight">
           <span className="font-bold text-base tracking-tight">Hexzor</span>
           <span className="text-[9px] text-muted-foreground uppercase tracking-widest">Empresarial</span>
         </div>
-      </div>
+      </Link>
 
       {/* Espacio switcher */}
       <div className="p-3 border-b">
@@ -107,30 +202,44 @@ export function Nav({
         )}
       </div>
 
-      <nav className="p-3 space-y-1">
-        {items.map((l) => {
-          const href = `/e/${espacioActual.slug}/${l.href}`;
-          const active = pathname === href || pathname.startsWith(href + "/");
-          const Icon = ICONS[l.icon];
+      <nav className="p-3 space-y-1 overflow-y-auto pb-24">
+        {entries.map((entry, idx) => {
+          if (entry.kind === "item") return renderItem(entry.item);
+
+          const g = entry.group;
+          const GroupIcon = ICONS[g.icon];
+          const isOpen = isGroupOpen(g);
           return (
-            <Link
-              key={l.href}
-              href={href}
-              onClick={() => setOpen(false)}
-              className={cn(
-                "flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-                active ? "bg-primary text-primary-foreground brand-glow" : "hover:bg-accent hover:text-accent-foreground"
+            <div key={g.id} className="space-y-1">
+              <button
+                onClick={() => toggle(g.id)}
+                className={cn(
+                  "w-full flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-semibold uppercase tracking-wide text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors text-[11px]"
+                )}
+              >
+                <GroupIcon className="h-4 w-4" />
+                <span className="flex-1 text-left">{g.label}</span>
+                {isOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+              </button>
+              {isOpen && (
+                <div className="space-y-0.5">
+                  {g.items.map(it => renderItem(it, 1))}
+                </div>
               )}
-            >
-              <Icon className="h-4 w-4" />
-              {l.label}
-            </Link>
+            </div>
           );
         })}
       </nav>
 
-      <div className="absolute bottom-0 inset-x-0 p-3 border-t bg-card">
-        {userEmail && <p className="text-xs text-muted-foreground truncate mb-2 px-2">{userEmail}</p>}
+      <div className="absolute bottom-0 inset-x-0 p-3 border-t bg-card space-y-2">
+        {userEmail && <p className="text-xs text-muted-foreground truncate px-2">{userEmail}</p>}
+        <Link
+          href="/espacios"
+          onClick={() => setOpen(false)}
+          className="flex items-center gap-2 rounded-md border px-3 py-2 text-sm hover:bg-accent transition-colors"
+        >
+          <ChevronLeft className="h-4 w-4" /> Mis espacios
+        </Link>
         <Button variant="outline" className="w-full justify-start gap-2" onClick={logout}>
           <LogOut className="h-4 w-4" /> Cerrar sesión
         </Button>
@@ -142,7 +251,7 @@ export function Nav({
     <>
       <header className="md:hidden sticky top-0 z-40 flex items-center justify-between border-b bg-background/80 backdrop-blur px-4 h-14">
         <Link href={`/e/${espacioActual.slug}/dashboard`} className="flex items-center gap-2">
-          <Image src="/icon.svg" alt="Hexzor" width={26} height={26} priority />
+          <Image src="/icon.jpg" alt="Hexzor" width={26} height={26} priority />
           <span className="font-bold tracking-tight truncate max-w-[160px]">{espacioActual.nombre}</span>
         </Link>
         <Button variant="ghost" size="icon" onClick={() => setOpen(!open)}>
@@ -152,7 +261,7 @@ export function Nav({
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-30 w-64 border-r bg-card transition-transform md:translate-x-0",
+          "fixed inset-y-0 left-0 z-30 w-64 border-r bg-card transition-transform md:translate-x-0 flex flex-col",
           open ? "translate-x-0" : "-translate-x-full md:translate-x-0",
           "pt-14 md:pt-0"
         )}

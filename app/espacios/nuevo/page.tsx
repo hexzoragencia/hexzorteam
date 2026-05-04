@@ -12,7 +12,7 @@ export default async function NuevoEspacioPage() {
     <main className="min-h-screen bg-muted/30">
       <header className="border-b bg-background">
         <div className="max-w-2xl mx-auto px-6 py-4 flex items-center gap-3">
-          <Image src="/icon.svg" alt="Hexzor" width={32} height={32} />
+          <Image src="/icon.jpg" alt="Hexzor" width={32} height={32} />
           <span className="font-bold tracking-tight">Hexzor</span>
           <Link href="/espacios" className="ml-auto text-sm underline">← Volver</Link>
         </div>

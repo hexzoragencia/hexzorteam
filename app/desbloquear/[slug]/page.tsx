@@ -24,7 +24,7 @@ export default async function DesbloquearPage({ params }: { params: { slug: stri
     <main className="min-h-screen grid place-items-center bg-muted/30 p-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-3">
-          <Image src="/icon.svg" alt="Hexzor" width={56} height={56} priority />
+          <Image src="/icon.jpg" alt="Hexzor" width={56} height={56} priority />
           <Lock className="h-6 w-6 text-muted-foreground" />
         </div>
         <Card>

@@ -32,7 +32,7 @@ export default function LoginPage() {
     <main className="min-h-screen grid place-items-center p-4 bg-muted/30">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center gap-3">
-          <Image src="/icon.svg" alt="Hexzor" width={64} height={64} priority />
+          <Image src="/icon.jpg" alt="Hexzor" width={64} height={64} priority />
           <h1 className="text-2xl font-bold tracking-tight">Hexzor Empresarial</h1>
         </div>
         <Card>

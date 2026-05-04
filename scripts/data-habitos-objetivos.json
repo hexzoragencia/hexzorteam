@@ -1,0 +1,114 @@
+{
+  "habitos": [
+    {
+      "nombre": "LEVANTARME A LAS 5:00AM"
+    },
+    {
+      "nombre": "BAÑARME AM"
+    },
+    {
+      "nombre": "ENTRENAR GIM 6 DIAS"
+    },
+    {
+      "nombre": "LEER"
+    },
+    {
+      "nombre": "EDUCARME 1 HORA"
+    },
+    {
+      "nombre": "3 PRODUTOS DIARIOS LANZADOS"
+    },
+    {
+      "nombre": "HACER ALGO NUEVO O IDEA"
+    },
+    {
+      "nombre": "ORGANIZAR MI CUARTO Y OFI"
+    },
+    {
+      "nombre": "ENTRENAR BOXEO"
+    },
+    {
+      "nombre": "SELECCION DIARIA  PRODUCTOS"
+    },
+    {
+      "nombre": "TIK TOK LIVE"
+    },
+    {
+      "nombre": "USAR EL CELULAR MENOS DE 4H"
+    }
+  ],
+  "objetivos": [
+    {
+      "titulo": "ESTANDARIZAR MENTORIAS",
+      "tipo": "financiero",
+      "estado": "en_progreso",
+      "ingreso_esperado": 4000000.0,
+      "ganancia_esperada": 20000000.0,
+      "cantidad": 5,
+      "progreso": 0
+    },
+    {
+      "titulo": "FERIA DE CHATEA PRO CON DROPI",
+      "tipo": "financiero",
+      "estado": "en_progreso",
+      "ingreso_esperado": 4000000.0,
+      "ganancia_esperada": 20000000.0,
+      "cantidad": 5,
+      "progreso": 0
+    },
+    {
+      "titulo": "ESTANDARIZAR COMUNIDAD",
+      "tipo": "financiero",
+      "estado": "en_progreso",
+      "ingreso_esperado": 5000000.0,
+      "ganancia_esperada": 5000000.0,
+      "cantidad": 1,
+      "progreso": 0
+    },
+    {
+      "titulo": "GENERACION DE HERRAMIENTAS DE ECOM",
+      "tipo": "financiero",
+      "estado": "en_progreso",
+      "ingreso_esperado": 1050000.0,
+      "ganancia_esperada": 2100000.0,
+      "cantidad": 2,
+      "progreso": 0
+    },
+    {
+      "titulo": "TIENDA DE COLOMBIA X CHATEA PRO",
+      "tipo": "financiero",
+      "estado": "en_progreso",
+      "ingreso_esperado": 10000000.0,
+      "ganancia_esperada": 10000000.0,
+      "cantidad": 1,
+      "progreso": 0
+    },
+    {
+      "titulo": "TRAFIQUER PARA EMPRESA",
+      "tipo": "financiero",
+      "estado": "en_progreso",
+      "ingreso_esperado": 4000000.0,
+      "ganancia_esperada": 0.0,
+      "cantidad": 1,
+      "progreso": 0
+    },
+    {
+      "titulo": "ANALIZIS DE PROYECTO DE PAGINAS X AGENCIA",
+      "tipo": "financiero",
+      "estado": "en_progreso",
+      "ingreso_esperado": 4000000.0,
+      "ganancia_esperada": 0.0,
+      "cantidad": 1,
+      "progreso": 0
+    },
+    {
+      "titulo": "CALL CENTER DE VARIOS PAISES",
+      "tipo": "financiero",
+      "estado": "en_progreso",
+      "ingreso_esperado": null,
+      "ganancia_esperada": null,
+      "cantidad": 1,
+      "progreso": 0
+    }
+  ]
+}

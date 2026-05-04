@@ -1,0 +1,868 @@
+{
+  "categorias": [
+    {
+      "tipo": "ingreso",
+      "nombre": "SERVICIOS",
+      "orden": 0
+    },
+    {
+      "tipo": "ingreso",
+      "nombre": "CHATEA PRO",
+      "orden": 1
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "TARJETA CREDITO AMERICAN",
+      "orden": 2
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "TARJETA CREDITO CLASICA",
+      "orden": 3
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "ARRIENDO MADRE",
+      "orden": 4
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "SERVICIOS",
+      "orden": 5
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "ARRIENDO",
+      "orden": 6
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "PAGO DE EMPLEADO",
+      "orden": 7
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "TARJETA GREEN MASTER",
+      "orden": 8
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "EMPLEADO SAMUEL",
+      "orden": 9
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "EMPLEADO JUAN",
+      "orden": 10
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "CELULAR ROSSO",
+      "orden": 11
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "CELULAR MADRE",
+      "orden": 12
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "INTERNET DE CASA",
+      "orden": 13
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "VERIFICADO",
+      "orden": 14
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "GOOGLE ONE",
+      "orden": 15
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "INTERNET CASA PROPIA",
+      "orden": 16
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "APPLE",
+      "orden": 17
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "COMIDA",
+      "orden": 18
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "ROPA",
+      "orden": 19
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "GASOLINA",
+      "orden": 20
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "VARIOS",
+      "orden": 21
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "PAUTA",
+      "orden": 22
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "MADRE MENSUALIDAD",
+      "orden": 23
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "HERRAMIENTAS AURE",
+      "orden": 24
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "CASA",
+      "orden": 25
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "MUÑECA",
+      "orden": 26
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "MOTO",
+      "orden": 27
+    }
+  ],
+  "presupuestos": [
+    {
+      "tipo": "pago_programado",
+      "nombre": "TARJETA CREDITO AMERICAN",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 1200000.0,
+      "fecha_esperada": "2026-02-01"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "TARJETA CREDITO CLASICA",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 150000.0,
+      "fecha_esperada": "2026-02-01"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "ARRIENDO MADRE",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 400000.0,
+      "fecha_esperada": "2026-02-01"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "SERVICIOS",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 300000.0,
+      "fecha_esperada": "2025-02-10"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "ARRIENDO",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 2100000.0,
+      "fecha_esperada": "2026-02-01"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "PAGO DE EMPLEADO",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 1000000.0,
+      "fecha_esperada": "2025-01-15"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "TARJETA GREEN MASTER",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 840000.0,
+      "fecha_esperada": "2026-02-01"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "EMPLEADO SAMUEL",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 500000.0,
+      "fecha_esperada": "2026-02-05"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "EMPLEADO JUAN",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 800000.0,
+      "fecha_esperada": "2026-02-05"
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "CELULAR ROSSO",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 45000.0,
+      "fecha_esperada": "2026-02-10"
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "CELULAR MADRE",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 40000.0,
+      "fecha_esperada": "2026-02-15"
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "INTERNET DE CASA",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 30000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "VERIFICADO",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 40000.0,
+      "fecha_esperada": "2026-01-10"
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "GOOGLE ONE",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 40000.0,
+      "fecha_esperada": "2026-01-10"
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "INTERNET CASA PROPIA",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 65000.0,
+      "fecha_esperada": "2026-02-07"
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "APPLE",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 33500.0,
+      "fecha_esperada": "2026-01-15"
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "COMIDA",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 500000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "GASOLINA",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 300000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "MADRE MENSUALIDAD",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 500000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "HERRAMIENTAS AURE",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 400000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "MUÑECA",
+      "ano": 2026,
+      "mes": 1,
+      "monto_esperado": 200000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "TARJETA CREDITO AMERICAN",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 1200000.0,
+      "fecha_esperada": "2026-04-30"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "TARJETA CREDITO CLASICA",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 200000.0,
+      "fecha_esperada": "2026-04-30"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "ARRIENDO MADRE",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 400000.0,
+      "fecha_esperada": "2026-04-30"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "SERVICIOS",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 300000.0,
+      "fecha_esperada": "2026-04-30"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "ARRIENDO",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 2100000.0,
+      "fecha_esperada": "2026-05-01"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "PAGO DE EMPLEADO",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 1800000.0,
+      "fecha_esperada": "2026-05-15"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "TARJETA GREEN MASTER",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 600000.0,
+      "fecha_esperada": "2026-04-30"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "EMPLEADO SAMUEL",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 1000000.0,
+      "fecha_esperada": "2026-04-30"
+    },
+    {
+      "tipo": "pago_programado",
+      "nombre": "EMPLEADO JUAN",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 500000.0,
+      "fecha_esperada": "2026-04-30"
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "CELULAR ROSSO",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 45000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "CELULAR MADRE",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 40000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "INTERNET DE CASA",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 60000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "VERIFICADO",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 60000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "GOOGLE ONE",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 30000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "INTERNET CASA PROPIA",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 100000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "suscripcion",
+      "nombre": "APPLE",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 20000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "COMIDA",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 1000000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "GASOLINA",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 300000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "VARIOS",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 500000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "MADRE MENSUALIDAD",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 500000.0,
+      "fecha_esperada": null
+    },
+    {
+      "tipo": "gasto_mensual",
+      "nombre": "MUÑECA",
+      "ano": 2026,
+      "mes": 4,
+      "monto_esperado": 200000.0,
+      "fecha_esperada": null
+    }
+  ],
+  "transacciones": [
+    {
+      "fecha": "2026-01-18",
+      "monto": 1000000.0,
+      "rubro": "PAGO DE EMPLEADO",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 200000.0,
+      "rubro": "MADRE MENSUALIDAD",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 129990.0,
+      "rubro": "ADDI",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 150000.0,
+      "rubro": "SISTICREDITO",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 93000.0,
+      "rubro": "INTERNET DE CASA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 35900.0,
+      "rubro": "CELULAR MADRE",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 33500.0,
+      "rubro": "APPLE",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 171000.0,
+      "rubro": "HERRAMIENTAS AURE",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 109000.0,
+      "rubro": "HERRAMIENTAS AURE",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 50000.0,
+      "rubro": "VARIOS",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 60000.0,
+      "rubro": "VARIOS",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 15000.0,
+      "rubro": "COMIDA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 20000.0,
+      "rubro": "VARIOS",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 60000.0,
+      "rubro": "VARIOS",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 34500.0,
+      "rubro": "COMIDA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 15500.0,
+      "rubro": "CASA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-18",
+      "monto": 34000.0,
+      "rubro": "COMIDA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-19",
+      "monto": 50000.0,
+      "rubro": "MUÑECA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-19",
+      "monto": 28000.0,
+      "rubro": "COMIDA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-19",
+      "monto": 18000.0,
+      "rubro": "COMIDA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-20",
+      "monto": 1234000.0,
+      "rubro": "TARJETA CREDITO AMERICAN",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-20",
+      "monto": 839985.0,
+      "rubro": "TARJETA GREEN MASTER",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-21",
+      "monto": 800000.0,
+      "rubro": "WESTER UNION",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-21",
+      "monto": 106806.0,
+      "rubro": "TARJETA CREDITO CLASICA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-21",
+      "monto": 19000.0,
+      "rubro": "COMIDA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-21",
+      "monto": 500000.0,
+      "rubro": "SARA HENAO",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-21",
+      "monto": 800000.0,
+      "rubro": "JUAN LEON",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-25",
+      "monto": 800000.0,
+      "rubro": "VARIOS",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-25",
+      "monto": 200000.0,
+      "rubro": "VARIOS",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-25",
+      "monto": 200000.0,
+      "rubro": "PAUTA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-25",
+      "monto": 50000.0,
+      "rubro": "COMIDA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-25",
+      "monto": 98000.0,
+      "rubro": "HERRAMIENTAS AURE",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-28",
+      "monto": 4500000.0,
+      "rubro": "CASA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-30",
+      "monto": 2100000.0,
+      "rubro": "ARRIENDO",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-30",
+      "monto": 400000.0,
+      "rubro": "ARRIENDO MADRE",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-01-28",
+      "monto": 50000.0,
+      "rubro": "SARA HENAO",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-02-01",
+      "monto": 35900.0,
+      "rubro": "CELULAR MADRE",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-02-14",
+      "monto": 1000000.0,
+      "rubro": "PAGO DE EMPLEADO",
+      "descripcion": "a miguel"
+    },
+    {
+      "fecha": "2026-02-14",
+      "monto": 800000.0,
+      "rubro": "WESTER UNION",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-02-14",
+      "monto": 1200000.0,
+      "rubro": "TARJETA CREDITO AMERICAN",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-02-14",
+      "monto": 1450000.0,
+      "rubro": "TARJETA GREEN MASTER",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-02-14",
+      "monto": 500000.0,
+      "rubro": "TARJETA CREDITO CLASICA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-02-14",
+      "monto": 500000.0,
+      "rubro": "SERVICIOS",
+      "descripcion": "casa mia casa de mama"
+    },
+    {
+      "fecha": "2026-02-14",
+      "monto": 400000.0,
+      "rubro": "ARRIENDO MADRE",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-02-14",
+      "monto": 63000.0,
+      "rubro": "INTERNET CASA PROPIA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-02-14",
+      "monto": 146000.0,
+      "rubro": "INTERNET DE CASA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-02-14",
+      "monto": 39000.0,
+      "rubro": "CELULAR ROSSO",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-02-14",
+      "monto": 20000.0,
+      "rubro": "APPLE",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-02-14",
+      "monto": 780000.0,
+      "rubro": "MOTO",
+      "descripcion": "DAÑO DE MOTO"
+    },
+    {
+      "fecha": "2026-04-24",
+      "monto": 1200000.0,
+      "rubro": "TARJETA CREDITO AMERICAN",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-04-24",
+      "monto": 500000.0,
+      "rubro": "TARJETA CREDITO CLASICA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-04-24",
+      "monto": 800000.0,
+      "rubro": "WESTER UNION",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-04-24",
+      "monto": 1800000.0,
+      "rubro": "PAGO DE EMPLEADO",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-04-24",
+      "monto": 600000.0,
+      "rubro": "TARJETA GREEN MASTER",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-04-24",
+      "monto": 300000.0,
+      "rubro": "SERVICIOS",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-04-24",
+      "monto": 45000.0,
+      "rubro": "CELULAR ROSSO",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-04-24",
+      "monto": 40000.0,
+      "rubro": "CELULAR MADRE",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-04-24",
+      "monto": 60000.0,
+      "rubro": "INTERNET DE CASA",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-04-24",
+      "monto": 60000.0,
+      "rubro": "VERIFICADO",
+      "descripcion": null
+    },
+    {
+      "fecha": "2026-04-24",
+      "monto": 100000.0,
+      "rubro": "INTERNET CASA PROPIA",
+      "descripcion": null
+    }
+  ],
+  "fondos": [
+    {
+      "nombre": "CARRO",
+      "meta": 80000000,
+      "pago_mensual": 0,
+      "inicial": 0,
+      "ahorrado": 0
+    },
+    {
+      "nombre": "VIAJES",
+      "meta": 80000000,
+      "pago_mensual": 0,
+      "inicial": 0,
+      "ahorrado": 0
+    }
+  ],
+  "deudas": [
+    {
+      "nombre": "WESTER UNION",
+      "balance": 8000000.0,
+      "interes_anual": 0.02,
+      "cuota_mensual": 830000.0
+    }
+  ]
+}
