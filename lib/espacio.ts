@@ -20,12 +20,24 @@ export async function getEspacioBySlug(slug: string): Promise<Espacio | null> {
 
 export async function getMisEspacios(): Promise<Espacio[]> {
   const supabase = createClient();
+  const user = await getCurrentUser();
+  if (!user) return [];
+  // Solo retorna espacios donde el usuario es miembro — aislamiento entre cuentas.
   const { data } = await supabase
     .from("espacios")
-    .select("*")
+    .select("*, espacio_miembros!inner(perfil_id)")
+    .eq("espacio_miembros.perfil_id", user.id)
     .order("tipo", { ascending: true })
     .order("created_at", { ascending: true });
   return (data ?? []) as Espacio[];
+}
+
+export async function isSuperAdmin(): Promise<boolean> {
+  const user = await getCurrentUser();
+  if (!user) return false;
+  const supabase = createClient();
+  const { data } = await supabase.from("perfiles").select("rol").eq("id", user.id).maybeSingle();
+  return data?.rol === "superadmin";
 }
 
 /**

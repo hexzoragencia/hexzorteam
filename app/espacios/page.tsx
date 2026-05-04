@@ -1,10 +1,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { redirect } from "next/navigation";
-import { getMisEspacios, getCurrentUser } from "@/lib/espacio";
+import { getMisEspacios, getCurrentUser, isSuperAdmin } from "@/lib/espacio";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Building2, User, Lock, Plus } from "lucide-react";
+import { Building2, User, Lock, Plus, BookOpen, Shield } from "lucide-react";
 import { LogoutButton } from "./logout-button";
 
 export default async function EspaciosPage() {
@@ -14,6 +14,7 @@ export default async function EspaciosPage() {
   const espacios = await getMisEspacios();
   const empresariales = espacios.filter((e) => e.tipo === "empresarial");
   const personales = espacios.filter((e) => e.tipo === "personal");
+  const esAdmin = await isSuperAdmin();
 
   return (
     <main className="min-h-screen bg-muted/30">
@@ -28,15 +29,28 @@ export default async function EspaciosPage() {
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground hidden sm:inline">{user.email}</span>
+            <Button asChild size="sm" variant="ghost">
+              <Link href="/guia"><BookOpen className="h-4 w-4 mr-1" /><span className="hidden sm:inline">Guía</span></Link>
+            </Button>
+            {esAdmin && (
+              <Button asChild size="sm" variant="ghost" className="text-primary">
+                <Link href="/admin"><Shield className="h-4 w-4 mr-1" /><span className="hidden sm:inline">Admin</span></Link>
+              </Button>
+            )}
             <LogoutButton />
           </div>
         </div>
       </header>
 
       <div className="max-w-5xl mx-auto p-6 space-y-8">
-        <div>
-          <h2 className="text-3xl font-bold tracking-tight">Tus espacios</h2>
-          <p className="text-muted-foreground">Selecciona un espacio para entrar o crea uno nuevo.</p>
+        <div className="flex items-start justify-between flex-wrap gap-3">
+          <div>
+            <h2 className="text-3xl font-bold tracking-tight">Tus espacios</h2>
+            <p className="text-muted-foreground">Selecciona un espacio para entrar o crea uno nuevo.</p>
+          </div>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/guia"><BookOpen className="h-4 w-4 mr-1" /> ¿Cómo funciona?</Link>
+          </Button>
         </div>
 
         <section className="space-y-3">
