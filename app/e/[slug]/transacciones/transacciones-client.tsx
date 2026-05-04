@@ -72,7 +72,7 @@ export function TransaccionesClient({
 
     setLoading(false);
     if (error) { setError(error.message); return; }
-    setTxs([data as TxRow, ...txs]);
+    setTxs([data as unknown as TxRow, ...txs]);
     setMonto(""); setDescripcion("");
     router.refresh();
   };

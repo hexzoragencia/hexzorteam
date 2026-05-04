@@ -30,6 +30,9 @@ export default function LoginPage() {
     if (user) {
       const { data: perfil } = await supabase.from("perfiles").select("estado").eq("id", user.id).maybeSingle();
       if (perfil?.estado === "pendiente") {
+        // Mantenemos la sesión pero solo le permitimos acceder a /esperando-aprobacion
+        // (que verifica de nuevo el estado y redirige si ya fue aprobado).
+        // El resto de páginas protegidas también revalidan estado.
         router.push("/esperando-aprobacion");
         return;
       }

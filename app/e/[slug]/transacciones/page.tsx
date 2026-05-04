@@ -22,7 +22,7 @@ export default async function TransaccionesPage({ params }: { params: { slug: st
       espacioId={espacio.id}
       moneda={espacio.moneda}
       categorias={cats ?? []}
-      initialTxs={txs ?? []}
+      initialTxs={(txs ?? []) as any}
     />
   );
 }

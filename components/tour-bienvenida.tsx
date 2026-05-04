@@ -122,7 +122,7 @@ export function TourBienvenida({ nombreUsuario }: { nombreUsuario: string }) {
   return (
     <div
       className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm grid place-items-center p-4 animate-in fade-in"
-      onClick={(e) => { if (e.target === e.currentTarget) cerrar(true); }}
+      onClick={(e) => { if (e.target === e.currentTarget) cerrar(false); }}
     >
       <div className="bg-card border-2 border-primary/30 rounded-xl shadow-2xl w-full max-w-lg overflow-hidden">
         {/* Header con skip */}

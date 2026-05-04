@@ -60,11 +60,17 @@ export async function requireEspacio(slug: string): Promise<Espacio> {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
 
+  const supabase = createClient();
+
+  // Verificar estado de cuenta — usuarios pendientes/rechazados no pueden acceder
+  const { data: perfil } = await supabase
+    .from("perfiles").select("estado").eq("id", user.id).maybeSingle();
+  if (perfil?.estado && perfil.estado !== "activo") redirect("/esperando-aprobacion");
+
   const espacio = await getEspacioBySlug(slug);
   if (!espacio) redirect("/espacios");
 
   // Verificar membresía
-  const supabase = createClient();
   const { data: miembro } = await supabase
     .from("espacio_miembros")
     .select("rol")
