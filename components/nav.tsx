@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard,
   Calculator, Settings, LogOut, Menu, X, ChevronDown, ChevronRight, ChevronLeft,
   Building2, User, Lock, Plus, BookOpenCheck, Palette, Sparkles, Rocket, Target, CalendarDays,
-  Package, TrendingUp, Briefcase,
+  Package, TrendingUp, Briefcase, Globe, Lightbulb, KeyRound,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import type { Espacio } from "@/lib/types";
 
 const ICONS: Record<string, any> = {
-  LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard, Calculator, Settings, BookOpenCheck, Palette, Sparkles, Rocket, Target, CalendarDays, Building2, Package, TrendingUp, Briefcase,
+  LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard, Calculator, Settings, BookOpenCheck, Palette, Sparkles, Rocket, Target, CalendarDays, Building2, Package, TrendingUp, Briefcase, Globe, Lightbulb, KeyRound,
 };
 
 type NavItem = { href: string; label: string; icon: string };
@@ -67,6 +67,9 @@ function buildNav(tipo: "empresarial" | "personal"): NavEntry[] {
       { href: "productos",  label: "Productos",         icon: "Package" },
       { href: "campanas",   label: "Campañas ADS",      icon: "TrendingUp" },
       { href: "proyeccion", label: "Proyección & Metas", icon: "Target" },
+      { href: "paginas",    label: "Páginas Ganadoras", icon: "Globe" },
+      { href: "recursos",   label: "Recursos",          icon: "Lightbulb" },
+      { href: "accesos",    label: "Bóveda de Accesos", icon: "KeyRound" },
     ],
   };
 
