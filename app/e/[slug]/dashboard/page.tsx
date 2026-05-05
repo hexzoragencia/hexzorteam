@@ -65,7 +65,7 @@ export default async function Dashboard({
   const diaActual = now.getDate();
   const mesActualIni = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
 
-  const [{ data: txMes }, { data: txAno }, { data: txAll }, { data: cats }, { data: presMes }, { data: presAno }, { data: txReciente }] = await Promise.all([
+  const [{ data: txMes }, { data: txAno }, { data: cats }, { data: presMes }, { data: presAno }, { data: txReciente }] = await Promise.all([
     supabase.from("transacciones")
       .select("id,fecha,monto,descripcion,categoria_id,categorias(nombre,tipo)")
       .eq("espacio_id", espacio.id)
@@ -75,9 +75,6 @@ export default async function Dashboard({
       .select("fecha,monto,categorias(tipo)")
       .eq("espacio_id", espacio.id)
       .gte("fecha", anoIni).lt("fecha", anoFin),
-    supabase.from("transacciones")
-      .select("monto,categorias(tipo)")
-      .eq("espacio_id", espacio.id),
     supabase.from("categorias").select("*").eq("espacio_id", espacio.id),
     supabase.from("presupuestos_mensuales").select("monto_esperado,categoria_id,categorias(espacio_id,tipo,nombre)")
       .eq("ano", ano).eq("mes", mes),
@@ -96,7 +93,6 @@ export default async function Dashboard({
 
   const txM = (txMes ?? []) as unknown as TxMes[];
   const txA = (txAno ?? []) as unknown as TxLite[];
-  const txAllL = (txAll ?? []) as unknown as TxLite[];
   const presM = ((presMes ?? []) as unknown as Pres[]).filter(p => p.categorias?.espacio_id === espacio.id);
   const presA = ((presAno ?? []) as unknown as Pres[]).filter(p => p.categorias?.espacio_id === espacio.id);
 
@@ -111,10 +107,6 @@ export default async function Dashboard({
   const presGastoMes = presM.filter(p => p.categorias && TIPOS_GASTO.includes(p.categorias.tipo)).reduce((s, p) => s + Number(p.monto_esperado), 0);
   const pctIngresoCumplido = presIngresoMes > 0 ? (ingresosMes / presIngresoMes) * 100 : null;
   const pctGastoUsado = presGastoMes > 0 ? (gastosMes / presGastoMes) * 100 : null;
-
-  // ===== Capital all-time =====
-  const sumAllTipo = (tipo: CategoriaTipo) => txAllL.filter(t => t.categorias?.tipo === tipo).reduce((s, t) => s + Number(t.monto), 0);
-  const capital = sumAllTipo("ingreso") - TIPOS_GASTO.reduce((s, t) => s + sumAllTipo(t), 0) - sumAllTipo("ahorro");
 
   // ===== Hoy y los últimos días (mes actual, no el mes seleccionado) =====
   const txR = (txReciente ?? []) as unknown as TxMes[];
@@ -174,11 +166,12 @@ export default async function Dashboard({
     else if (TIPOS_GASTO.includes(t.categorias.tipo)) anualData[mIdx].egresos += monto;
   }
 
-  // ===== Alertas =====
+  // ===== Alertas (solo del mes seleccionado) =====
   const alertas: { tipo: "danger" | "warn" | "info"; msg: string }[] = [];
-  if (capital < 0) alertas.push({ tipo: "danger", msg: `Capital total negativo: ${formatMoney(capital, espacio.moneda)}` });
   if (gastosMes > ingresosMes && ingresosMes > 0)
     alertas.push({ tipo: "warn", msg: `Este mes gastaste ${formatMoney(gastosMes - ingresosMes, espacio.moneda)} más de lo que ingresaste.` });
+  if (ingresosMes > 0 && restante < 0)
+    alertas.push({ tipo: "warn", msg: `Tu balance del mes está en negativo: ${formatMoney(restante, espacio.moneda)}.` });
   if (pctGastoUsado !== null && pctGastoUsado > 100)
     alertas.push({ tipo: "warn", msg: `Excediste el presupuesto del mes en ${formatMoney(gastosMes - presGastoMes, espacio.moneda)} (${pctGastoUsado.toFixed(0)}%).` });
   // Categorías que se pasaron del presupuesto
@@ -265,18 +258,18 @@ export default async function Dashboard({
           progressDanger
         />
         <KpiCard
-          title="Restante del mes"
-          value={formatMoney(restante, espacio.moneda)}
-          subtitle={restante >= 0 ? "Te queda saldo" : "Vas en negativo"}
-          icon={restante >= 0 ? <TrendingUp /> : <TrendingDown />}
-          color={restante >= 0 ? "success" : "destructive"}
+          title="Ahorrado del mes"
+          value={formatMoney(ahorroMes, espacio.moneda)}
+          subtitle="Lo que destinaste a ahorro este mes"
+          icon={<Wallet />}
+          color="primary"
         />
         <KpiCard
-          title="Capital total"
-          value={formatMoney(capital, espacio.moneda)}
-          subtitle="Todo lo registrado hasta hoy"
-          icon={<Wallet />}
-          color={capital >= 0 ? "primary" : "destructive"}
+          title="Balance del mes"
+          value={formatMoney(restante, espacio.moneda)}
+          subtitle={restante >= 0 ? "Te queda saldo libre" : "Estás gastando más de lo que ingresaste"}
+          icon={restante >= 0 ? <TrendingUp /> : <TrendingDown />}
+          color={restante >= 0 ? "success" : "destructive"}
         />
       </div>
 
