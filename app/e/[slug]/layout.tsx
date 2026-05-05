@@ -3,7 +3,7 @@ import { Nav } from "@/components/nav";
 import { createClient } from "@/lib/supabase/server";
 import { PomodoroWidget } from "@/components/pomodoro-widget";
 import { CoachChat } from "@/components/coach-chat";
-import { hoyIso } from "@/lib/fechas";
+import { hoyIso, sumarDias } from "@/lib/fechas";
 import type { Tarea } from "@/lib/types";
 
 export default async function EspacioLayout({
@@ -19,12 +19,20 @@ export default async function EspacioLayout({
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  // Tareas de hoy para el selector del Pomodoro (solo si es espacio personal)
+  // Tareas pendientes para el selector del Pomodoro: hoy + próximos 7 días
+  // Inclusivo para evitar problemas de timezone y permitir enfocarse en tareas futuras.
   let tareasHoy: Tarea[] = [];
   if (espacio.tipo === "personal") {
     try {
+      const desde = sumarDias(hoyIso(), -1); // ayer en adelante (por si timezone)
+      const hasta = sumarDias(hoyIso(), 7);
       const { data } = await supabase.from("tareas")
-        .select("*").eq("espacio_id", espacio.id).eq("fecha", hoyIso())
+        .select("*")
+        .eq("espacio_id", espacio.id)
+        .eq("completada", false)
+        .gte("fecha", desde)
+        .lte("fecha", hasta)
+        .order("fecha", { ascending: true })
         .order("hora_inicio", { ascending: true, nullsFirst: false });
       tareasHoy = (data ?? []) as Tarea[];
     } catch { /* tabla aún no existe */ }

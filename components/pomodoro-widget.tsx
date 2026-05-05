@@ -7,6 +7,31 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Tarea, Espacio } from "@/lib/types";
 import { Play, Pause, X, Coffee, Brain, ChevronUp, ChevronDown } from "lucide-react";
+import { hoyIso } from "@/lib/fechas";
+
+function etiquetaFecha(fecha: string): string {
+  const hoyStr = hoyIso();
+  if (fecha === hoyStr) return "Hoy";
+  // Mañana
+  const d = new Date(fecha + "T00:00:00");
+  const hoyD = new Date(hoyStr + "T00:00:00");
+  const diff = Math.round((d.getTime() - hoyD.getTime()) / (1000 * 60 * 60 * 24));
+  if (diff === 1) return "Mañana";
+  if (diff === -1) return "Ayer";
+  if (diff > 1 && diff <= 7) {
+    const dias = ["Dom","Lun","Mar","Mié","Jue","Vie","Sáb"];
+    return dias[d.getDay()];
+  }
+  return d.toLocaleDateString("es-CO", { day: "2-digit", month: "short" });
+}
+
+function fmtHoraCorta(hora: string | null): string {
+  if (!hora) return "";
+  const [h, m] = hora.split(":").map(Number);
+  const ampm = h >= 12 ? "pm" : "am";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return ` ${h12}:${String(m).padStart(2,"0")}${ampm}`;
+}
 
 type Estado = "idle" | "trabajando" | "pausado" | "descansando" | "terminado";
 
@@ -183,8 +208,17 @@ export function PomodoroWidget({ espacio, tareasHoy }: { espacio: Espacio; tarea
             defaultValue=""
           >
             <option value="">— Sin tarea específica —</option>
-            {tareasPendientes.map(t => <option key={t.id} value={t.id}>{t.titulo}</option>)}
+            {tareasPendientes.map(t => (
+              <option key={t.id} value={t.id}>
+                {etiquetaFecha(t.fecha)}{fmtHoraCorta(t.hora_inicio)} · {t.titulo}
+              </option>
+            ))}
           </select>
+          {tareasPendientes.length === 0 && (
+            <p className="text-[10px] text-muted-foreground mt-1">
+              No hay tareas pendientes en los próximos 7 días.
+            </p>
+          )}
         </div>
         <Button
           className="w-full"

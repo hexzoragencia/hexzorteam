@@ -19,9 +19,17 @@ export function diasDeSemana(lunesIso: string): string[] {
   return Array.from({ length: 7 }, (_, i) => sumarDias(lunesIso, i));
 }
 
+// "Hoy" en zona horaria local (Colombia/Bogotá UTC-5), no en UTC.
+// Crítico para que las queries por fecha encuentren tareas correctamente
+// cuando el server está en UTC y el usuario en otra zona.
 export function hoyIso(): string {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+  // America/Bogota es la zona del usuario. Si usas otra, ajusta el TZ.
+  const fmt = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  });
+  // en-CA da formato YYYY-MM-DD directo
+  return fmt.format(new Date());
 }
 
 const DIAS_LARGO = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
