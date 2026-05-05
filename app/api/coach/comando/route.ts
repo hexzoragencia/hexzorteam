@@ -22,6 +22,8 @@ Acciones disponibles:
 Reglas:
 - Las fechas relativas (hoy, mañana, en 2 días) conviértelas a YYYY-MM-DD usando la fecha base que te paso.
 - Los montos: "50k" = 50000, "1M" = 1000000, "200" = 200.
+- Para crear_tarea: SIEMPRE provee duracion_min (default 60 = 1 hora). Si el usuario indica una hora (ej "a las 3pm", "por la tarde"), úsala en hora_inicio. Si NO menciona hora, deja hora_inicio vacío — el sistema le asigna automáticamente el próximo slot libre.
+- Si el usuario crea varias tareas en un solo mensaje, llama crear_tarea una vez por cada una; el sistema las distribuirá en slots consecutivos.
 - Si no estás seguro, llama "conversar" pidiendo aclaración.
 - Devuelve respuesta natural, breve (máx 2 frases), confirmando lo que hiciste o preguntando si dudas.`;
 
@@ -212,17 +214,29 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
   }
 
   if (fn === "crear_tarea") {
+    const duracion = args.duracion_min ?? 60;
+    let hora: string | null = null;
+    if (args.hora_inicio) {
+      // El usuario o la IA dio una hora explícita
+      hora = `${args.hora_inicio}:00`;
+    } else {
+      // Auto-asignar siguiente slot libre en horario laboral
+      const slot = await siguienteSlotLibre(sb, espacioId, args.fecha, duracion);
+      hora = slot;
+    }
+
     const { error } = await sb.from("tareas").insert({
       espacio_id: espacioId,
       titulo: args.titulo,
       fecha: args.fecha,
-      hora_inicio: args.hora_inicio ? `${args.hora_inicio}:00` : null,
-      duracion_min: args.duracion_min ?? 60,
+      hora_inicio: hora,
+      duracion_min: duracion,
       tipo: args.tipo ?? "tarea",
       descripcion: args.descripcion ?? null,
     });
     if (error) throw error;
-    const horaTxt = args.hora_inicio ? ` a las ${args.hora_inicio}` : "";
+    const horaCorta = hora ? hora.slice(0, 5) : null;
+    const horaTxt = horaCorta ? ` a las ${horaCorta}` : "";
     return `📅 Agendé "${args.titulo}" el ${args.fecha}${horaTxt}`;
   }
 
@@ -244,4 +258,62 @@ async function getEspacioPersonal(sb: any, userId: string): Promise<string | nul
   const { data } = await sb.from("espacios").select("id, tipo, espacio_miembros!inner(perfil_id)")
     .eq("tipo", "personal").eq("espacio_miembros.perfil_id", userId).maybeSingle();
   return data?.id ?? null;
+}
+
+/**
+ * Busca el siguiente slot libre en horario laboral (8am-8pm) para una fecha dada.
+ * Considera tareas existentes y va encontrando el primer hueco que entre la duración pedida.
+ * Snap a la hora en punto (08:00, 09:00, ...) para que se vea ordenado.
+ * Si no encuentra slot, devuelve null (la tarea queda sin hora — visible arriba del día).
+ */
+async function siguienteSlotLibre(
+  sb: any, espacioId: string, fecha: string, duracionMin: number,
+): Promise<string | null> {
+  const HORA_INICIO_DIA = 8 * 60;   // 08:00
+  const HORA_FIN_DIA = 20 * 60;     // 20:00
+  const SNAP_MIN = 60;              // snap a horas en punto
+
+  const { data: existentes } = await sb.from("tareas")
+    .select("hora_inicio, duracion_min")
+    .eq("espacio_id", espacioId)
+    .eq("fecha", fecha)
+    .not("hora_inicio", "is", null)
+    .order("hora_inicio", { ascending: true });
+
+  // Convertir tareas existentes a [start, end] en minutos
+  const ocupados: { start: number; end: number }[] = (existentes ?? [])
+    .map((t: any) => {
+      const [h, m] = String(t.hora_inicio).split(":").map(Number);
+      const start = h * 60 + m;
+      const end = start + (t.duracion_min || 60);
+      return { start, end };
+    })
+    .sort((a: any, b: any) => a.start - b.start);
+
+  // Cursor empieza en horario laboral, snapeado a hora en punto
+  let cursor = HORA_INICIO_DIA;
+
+  for (const o of ocupados) {
+    // ¿Hay hueco antes de esta tarea?
+    if (o.start - cursor >= duracionMin) {
+      // Snap cursor a próxima hora en punto
+      const cursorSnap = Math.ceil(cursor / SNAP_MIN) * SNAP_MIN;
+      if (o.start - cursorSnap >= duracionMin) return formatHora(cursorSnap);
+      // Si snap empuja muy cerca, intentamos el cursor sin snap
+      if (o.start - cursor >= duracionMin) return formatHora(cursor);
+    }
+    cursor = Math.max(cursor, o.end);
+  }
+
+  // Después de todas las tareas, ¿queda espacio antes del cierre?
+  const cursorSnap = Math.ceil(cursor / SNAP_MIN) * SNAP_MIN;
+  if (HORA_FIN_DIA - cursorSnap >= duracionMin) return formatHora(cursorSnap);
+
+  return null;
+}
+
+function formatHora(min: number): string {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:00`;
 }
