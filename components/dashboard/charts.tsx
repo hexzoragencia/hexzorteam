@@ -81,19 +81,21 @@ export function BarTopCategorias({ data, currency = "COP" }: { data: { nombre: s
 }
 
 // ===== Bar: Gastos día a día del mes =====
-export function BarGastoDiario({ data, currency = "COP" }: { data: { dia: number; gasto: number }[]; currency?: string }) {
+export function BarGastoDiario({ data, currency = "COP" }: { data: { etiqueta: string; gasto: number }[]; currency?: string }) {
   const total = data.reduce((s, d) => s + d.gasto, 0);
   if (total === 0) {
-    return <p className="text-sm text-muted-foreground py-8 text-center">Sin transacciones este mes.</p>;
+    return <p className="text-sm text-muted-foreground py-8 text-center">Sin gastos en este período.</p>;
   }
   const fmt = mkFmt(currency);
+  // Más espaciado en X si hay menos puntos
+  const intervalo = data.length > 25 ? 2 : data.length > 14 ? 1 : 0;
   return (
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data} margin={{ left: 0, right: 8, top: 4, bottom: 4 }}>
         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
-        <XAxis dataKey="dia" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval={2} />
+        <XAxis dataKey="etiqueta" tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} interval={intervalo} />
         <YAxis tickFormatter={fmt} tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }} width={70} />
-        <Tooltip formatter={(v: any) => fmt(Number(v))} labelFormatter={(d: any) => `Día ${d}`} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }} />
+        <Tooltip formatter={(v: any) => fmt(Number(v))} labelFormatter={(d: any) => `${d}`} contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8 }} cursor={{ fill: "hsl(var(--muted))", opacity: 0.3 }} />
         <Bar dataKey="gasto" fill={COLORS[2]} radius={[4, 4, 0, 0]} />
       </BarChart>
     </ResponsiveContainer>

@@ -18,17 +18,50 @@ const MES_NOMBRES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct"
 
 export default async function Dashboard({
   params, searchParams,
-}: { params: { slug: string }; searchParams: { ano?: string; mes?: string } }) {
+}: { params: { slug: string }; searchParams: { ano?: string; mes?: string; modo?: string; from?: string; to?: string } }) {
   const espacio = await requireEspacio(params.slug);
   const supabase = createClient();
   const now = new Date();
   const ano = Number(searchParams.ano) || now.getFullYear();
   const mes = Number(searchParams.mes) || (now.getMonth() + 1);
-  const mesIni = `${ano}-${String(mes).padStart(2, "0")}-01`;
-  const mesFin = mes === 12 ? `${ano + 1}-01-01` : `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
+
+  // Período: 3 modos — mes (default), día, rango
+  const modo = (searchParams.modo === "dia" || searchParams.modo === "rango") ? searchParams.modo : "mes";
+  let periodoIni: string;
+  let periodoFinExclusivo: string; // exclusivo (lt)
+  let periodoLabel: string;       // "del mes" / "del día" / "del período"
+  let periodoTitulo: string;      // ej "Mayo 2026" / "5 May 2026" / "1 May - 7 May"
+
+  const MES_NOMBRES_LARGO = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
+  function fechaCortaTxt(iso: string) {
+    const d = new Date(iso + "T00:00:00");
+    return `${d.getDate()} ${MES_NOMBRES[d.getMonth()].toLowerCase()} ${d.getFullYear()}`;
+  }
+
+  if (modo === "dia" && searchParams.from) {
+    periodoIni = searchParams.from;
+    periodoFinExclusivo = sumarDias(searchParams.from, 1);
+    periodoLabel = "del día";
+    periodoTitulo = fechaCortaTxt(searchParams.from);
+  } else if (modo === "rango" && searchParams.from && searchParams.to) {
+    periodoIni = searchParams.from;
+    periodoFinExclusivo = sumarDias(searchParams.to, 1);
+    periodoLabel = "del período";
+    periodoTitulo = `${fechaCortaTxt(searchParams.from)} → ${fechaCortaTxt(searchParams.to)}`;
+  } else {
+    periodoIni = `${ano}-${String(mes).padStart(2, "0")}-01`;
+    periodoFinExclusivo = mes === 12 ? `${ano + 1}-01-01` : `${ano}-${String(mes + 1).padStart(2, "0")}-01`;
+    periodoLabel = "del mes";
+    periodoTitulo = `${MES_NOMBRES_LARGO[mes - 1].charAt(0).toUpperCase() + MES_NOMBRES_LARGO[mes - 1].slice(1)} ${ano}`;
+  }
+
+  const mesIni = periodoIni;
+  const mesFin = periodoFinExclusivo;
   const anoIni = `${ano}-01-01`;
   const anoFin = `${ano + 1}-01-01`;
   const diasEnMes = new Date(ano, mes, 0).getDate();
+  // Días dentro del período (para el promedio diario y el gráfico de gastos por día)
+  const diasPeriodo = Math.round((new Date(periodoFinExclusivo + "T00:00:00").getTime() - new Date(periodoIni + "T00:00:00").getTime()) / 86400000);
 
   // Tareas de hoy (solo en espacio personal y solo si la tabla existe)
   let tareasHoy: Tarea[] = [];
@@ -146,15 +179,29 @@ export default async function Dashboard({
     .sort((a, b) => b.total - a.total)
     .slice(0, 10);
 
-  // ===== Bar: gasto día a día del mes =====
-  const gastoPorDia: Record<number, number> = {};
-  for (let d = 1; d <= diasEnMes; d++) gastoPorDia[d] = 0;
+  // ===== Bar: gasto día a día del período =====
+  // Genera una barra por cada día dentro del período (mesIni → mesFin exclusivo).
+  const gastoPorFecha: Record<string, number> = {};
+  for (let i = 0; i < diasPeriodo; i++) {
+    const f = sumarDias(periodoIni, i);
+    gastoPorFecha[f] = 0;
+  }
   for (const t of txM) {
     if (!t.categorias || t.categorias.tipo === "ingreso") continue;
-    const dia = Number(t.fecha.split("-")[2]);
-    gastoPorDia[dia] = (gastoPorDia[dia] ?? 0) + Number(t.monto);
+    if (gastoPorFecha[t.fecha] === undefined) gastoPorFecha[t.fecha] = 0;
+    gastoPorFecha[t.fecha] += Number(t.monto);
   }
-  const dailyData = Object.entries(gastoPorDia).map(([dia, gasto]) => ({ dia: Number(dia), gasto }));
+  // Etiqueta visible: en modo mes solo el número de día; en otros modos el "día mes" corto.
+  const MES_CORTO = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+  const dailyData = Object.entries(gastoPorFecha)
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([fecha, gasto]) => {
+      const d = new Date(fecha + "T00:00:00");
+      const etiqueta = modo === "mes"
+        ? String(d.getDate())
+        : `${d.getDate()} ${MES_CORTO[d.getMonth()]}`;
+      return { etiqueta, gasto };
+    });
 
   // ===== Line anual: ingresos vs egresos por mes =====
   const anualData = Array.from({ length: 12 }, (_, i) => ({ mes: MES_NOMBRES[i], ingresos: 0, egresos: 0 }));
@@ -238,34 +285,39 @@ export default async function Dashboard({
         <ClasesMentoriaCard clases={proximasClasesMentoria} />
       )}
 
+      {/* Etiqueta del período actual (ayuda a entender que los KPIs son del rango seleccionado) */}
+      <div className="text-sm text-muted-foreground">
+        Mostrando: <span className="font-medium text-foreground">{periodoTitulo}</span>
+      </div>
+
       {/* KPIs grandes */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <KpiCard
-          title="Ingresos del mes"
+          title={`Ingresos ${periodoLabel}`}
           value={formatMoney(ingresosMes, espacio.moneda)}
-          subtitle={pctIngresoCumplido !== null ? `${pctIngresoCumplido.toFixed(0)}% del esperado (${formatMoney(presIngresoMes, espacio.moneda)})` : "Sin presupuesto"}
+          subtitle={modo === "mes" && pctIngresoCumplido !== null ? `${pctIngresoCumplido.toFixed(0)}% del esperado (${formatMoney(presIngresoMes, espacio.moneda)})` : (modo !== "mes" ? "Solo del período" : "Sin presupuesto")}
           icon={<ArrowUpRight />}
           color="success"
-          progress={pctIngresoCumplido}
+          progress={modo === "mes" ? pctIngresoCumplido : null}
         />
         <KpiCard
-          title="Gastos del mes"
+          title={`Gastos ${periodoLabel}`}
           value={formatMoney(gastosMes, espacio.moneda)}
-          subtitle={pctGastoUsado !== null ? `${pctGastoUsado.toFixed(0)}% del presupuesto (${formatMoney(presGastoMes, espacio.moneda)})` : "Sin presupuesto"}
+          subtitle={modo === "mes" && pctGastoUsado !== null ? `${pctGastoUsado.toFixed(0)}% del presupuesto (${formatMoney(presGastoMes, espacio.moneda)})` : (modo !== "mes" ? "Solo del período" : "Sin presupuesto")}
           icon={<ArrowDownRight />}
-          color={pctGastoUsado !== null && pctGastoUsado > 100 ? "destructive" : "primary"}
-          progress={pctGastoUsado}
+          color={modo === "mes" && pctGastoUsado !== null && pctGastoUsado > 100 ? "destructive" : "primary"}
+          progress={modo === "mes" ? pctGastoUsado : null}
           progressDanger
         />
         <KpiCard
-          title="Ahorrado del mes"
+          title={`Ahorrado ${periodoLabel}`}
           value={formatMoney(ahorroMes, espacio.moneda)}
-          subtitle="Lo que destinaste a ahorro este mes"
+          subtitle={`Destinado a ahorro en este ${modo === "dia" ? "día" : modo === "rango" ? "período" : "mes"}`}
           icon={<Wallet />}
           color="primary"
         />
         <KpiCard
-          title="Balance del mes"
+          title={`Balance ${periodoLabel}`}
           value={formatMoney(restante, espacio.moneda)}
           subtitle={restante >= 0 ? "Te queda saldo libre" : "Estás gastando más de lo que ingresaste"}
           icon={restante >= 0 ? <TrendingUp /> : <TrendingDown />}
@@ -339,7 +391,7 @@ export default async function Dashboard({
       {/* "Así se ve tu dinero" — tabla por tipo */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Target className="h-5 w-5" /> Así se ve tu dinero — {MES_NOMBRES[mes - 1]} {ano}</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Target className="h-5 w-5" /> Así se ve tu dinero — {periodoTitulo}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="space-y-3">
@@ -399,7 +451,7 @@ export default async function Dashboard({
 
       {/* Gasto día a día */}
       <Card>
-        <CardHeader><CardTitle>¿Cuándo gastaste tu dinero? · {MES_NOMBRES[mes - 1]}</CardTitle></CardHeader>
+        <CardHeader><CardTitle>¿Cuándo gastaste tu dinero? · {periodoTitulo}</CardTitle></CardHeader>
         <CardContent>
           <BarGastoDiario data={dailyData} currency={espacio.moneda} />
         </CardContent>
@@ -415,7 +467,7 @@ export default async function Dashboard({
 
       {/* Últimas transacciones del mes */}
       <Card>
-        <CardHeader><CardTitle>Transacciones de {MES_NOMBRES[mes - 1]}</CardTitle></CardHeader>
+        <CardHeader><CardTitle>Transacciones · {periodoTitulo}</CardTitle></CardHeader>
         <CardContent className="p-0">
           {txM.length === 0 ? (
             <p className="text-sm text-muted-foreground p-6">Sin transacciones este mes. <Link href={`/e/${espacio.slug}/transacciones`} className="underline text-primary">Registra una</Link>.</p>
