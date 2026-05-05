@@ -15,7 +15,7 @@ interface Consejo {
   cached?: boolean;
 }
 
-export function CoachCard() {
+export function CoachCard({ espacioId }: { espacioId?: string } = {}) {
   const [consejo, setConsejo] = useState<Consejo | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -25,7 +25,8 @@ export function CoachCard() {
     if (forzar) setRefreshing(true); else setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/coach/consejo", {
+      const qs = espacioId ? `?espacio_id=${espacioId}` : "";
+      const res = await fetch(`/api/coach/consejo${qs}`, {
         method: forzar ? "POST" : "GET",
         cache: "no-store",
       });
@@ -43,7 +44,7 @@ export function CoachCard() {
     }
   }
 
-  useEffect(() => { cargar(false); }, []);
+  useEffect(() => { cargar(false); }, [espacioId]);
 
   if (loading) {
     return (

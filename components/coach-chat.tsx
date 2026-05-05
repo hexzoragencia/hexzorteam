@@ -31,7 +31,7 @@ const SALUDO_INICIAL: Mensaje = {
   ts: Date.now(),
 };
 
-export function CoachChat() {
+export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [mensajes, setMensajes] = useState<Mensaje[]>([SALUDO_INICIAL]);
@@ -80,7 +80,7 @@ export function CoachChat() {
       const res = await fetch("/api/coach/comando", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto: t }),
+        body: JSON.stringify({ texto: t, espacio_id: espacioId }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));

@@ -119,8 +119,16 @@ export async function POST(req: Request) {
     const texto: string = String(body.texto ?? "").trim();
     if (!texto) return NextResponse.json({ error: "vacío" }, { status: 400 });
 
-    const espacioId = await getEspacioPersonal(supabase, user.id);
-    if (!espacioId) return NextResponse.json({ error: "no espacio personal" }, { status: 404 });
+    let espacioId: string | null = body.espacio_id ?? null;
+    if (espacioId) {
+      // Verificar que el usuario es miembro
+      const { data: esp } = await supabase.from("espacios").select("id, espacio_miembros!inner(perfil_id)")
+        .eq("id", espacioId).eq("espacio_miembros.perfil_id", user.id).maybeSingle();
+      if (!esp) return NextResponse.json({ error: "espacio no accesible" }, { status: 403 });
+    } else {
+      espacioId = await getEspacioPersonal(supabase, user.id);
+      if (!espacioId) return NextResponse.json({ error: "no espacio personal" }, { status: 404 });
+    }
 
     const fechaHoy = hoyIso();
 

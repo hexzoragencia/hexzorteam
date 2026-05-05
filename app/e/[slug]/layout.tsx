@@ -44,12 +44,12 @@ export default async function EspacioLayout({
       <main className="md:pl-64">
         <div className="p-4 md:p-8 max-w-6xl mx-auto">{children}</div>
       </main>
+      {/* Pomodoro: solo personal (productividad) */}
       {espacio.tipo === "personal" && (
-        <>
-          <PomodoroWidget espacio={espacio} tareasHoy={tareasHoy} />
-          <CoachChat />
-        </>
+        <PomodoroWidget espacio={espacio} tareasHoy={tareasHoy} />
       )}
+      {/* Coach IA chat: en ambos espacios */}
+      <CoachChat espacioId={espacio.id} />
     </div>
   );
 }

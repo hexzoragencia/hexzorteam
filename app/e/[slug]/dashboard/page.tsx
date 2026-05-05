@@ -41,14 +41,14 @@ export default async function Dashboard({
     } catch { /* tabla aún no existe */ }
   }
 
-  // Próximas clases de mentoría (solo si el usuario es superadmin y está en personal)
+  // Próximas clases de mentoría (solo si el usuario es superadmin — aplica en ambos espacios)
   const esAdminUser = await isSuperAdmin();
   type ClaseMentoria = {
     id: string; titulo: string; fecha: string; hora: string | null; duracion_min: number | null;
     estudiante_id: string; estudiante_nombre: string;
   };
   let proximasClasesMentoria: ClaseMentoria[] = [];
-  if (esAdminUser && espacio.tipo === "personal") {
+  if (esAdminUser) {
     try {
       const { data: mc } = await supabase
         .from("mentorias_proximas_clases")
@@ -234,14 +234,14 @@ export default async function Dashboard({
         </div>
       )}
 
-      {/* Coach IA: saludo + análisis del día (solo personal) */}
-      {espacio.tipo === "personal" && <CoachCard />}
+      {/* Coach IA: saludo + análisis del día (en ambos espacios) */}
+      <CoachCard espacioId={espacio.id} />
 
-      {/* Card "Hoy" — Próximas tareas (solo personal) */}
+      {/* Card "Hoy" — Próximas tareas (solo personal — productividad) */}
       {espacio.tipo === "personal" && tareasHoy.length > 0 && <TareasHoyCard tareas={tareasHoy} slug={espacio.slug} />}
 
-      {/* Próximas clases de mentoría — solo superadmin en personal */}
-      {esAdminUser && espacio.tipo === "personal" && proximasClasesMentoria.length > 0 && (
+      {/* Próximas clases de mentoría — solo superadmin (en ambos espacios) */}
+      {esAdminUser && proximasClasesMentoria.length > 0 && (
         <ClasesMentoriaCard clases={proximasClasesMentoria} />
       )}
 

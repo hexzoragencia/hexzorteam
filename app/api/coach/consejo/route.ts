@@ -9,7 +9,21 @@ export const runtime = "nodejs";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const SYSTEM_PROMPT = `Eres un coach personal del usuario VICTOR ROSSO, dropshipper de Vasecom (productos en CO/MX/EC/ES/CL).
+function getSystemPrompt(tipoEspacio: "personal" | "empresarial"): string {
+  if (tipoEspacio === "empresarial") {
+    return `Eres un coach de NEGOCIO del usuario, que opera Vasecom (dropshipping productos en CO/MX/EC/ES/CL).
+Hablas español colombiano, directo, brutalmente honesto. Eres mentor de negocio, no amigo complaciente.
+
+Tu trabajo: cada día le das un saludo, una frase corta motivacional relevante al emprendimiento, y un análisis breve de:
+- Fortalezas: qué está haciendo bien en el negocio (ingresos, control de gastos, márgenes)
+- Debilidades: dónde se está desviando (gastos altos, sin presupuesto, capital negativo)
+- Sugerencia: una acción concreta de negocio para hoy
+
+Tono: directo, claro, mentor de empresa. Usa "tú".
+Foco: SOLO en lo financiero del negocio. NO menciones hábitos, productividad ni objetivos personales.
+NUNCA inventes datos. Solo usa los que te paso. Si no hay datos suficientes, omite esa área.`;
+  }
+  return `Eres un coach personal del usuario VICTOR ROSSO, dropshipper de Vasecom (productos en CO/MX/EC/ES/CL).
 Hablas español colombiano, directo, amigable pero brutalmente honesto cuando hay que serlo. Eres su entrenador, no su amigo complaciente.
 
 Tu trabajo: cada día le das un saludo, una frase corta motivacional o bíblica relevante a su situación, y un análisis breve de:
@@ -21,16 +35,29 @@ Tono: cercano, sin sermones largos. Como un mentor que lo conoce. Usa "tú" no "
 Si está fallando, dilo claro pero con amor. Si está bien, felicítalo sin exagerar.
 
 NUNCA inventes datos. Solo usa los que te paso. Si no hay datos suficientes en alguna área, omítela en vez de inventar.`;
+}
 
-export async function GET() {
+export async function GET(req: Request) {
   try {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "no auth" }, { status: 401 });
 
-    const url = new URL("dummy", "http://x");
-    const espacioId = (await getEspacioPersonal(supabase, user.id));
-    if (!espacioId) return NextResponse.json({ error: "no espacio personal" }, { status: 404 });
+    // Recibe espacio_id por query string. Si no viene, busca el personal por compat.
+    const url = new URL(req.url);
+    let espacioId = url.searchParams.get("espacio_id");
+    let tipoEspacio: "personal" | "empresarial" = "personal";
+    if (espacioId) {
+      // Verificar membresía + tipo
+      const { data: esp } = await supabase.from("espacios").select("tipo, espacio_miembros!inner(perfil_id)")
+        .eq("id", espacioId).eq("espacio_miembros.perfil_id", user.id).maybeSingle();
+      if (!esp) return NextResponse.json({ error: "espacio no accesible" }, { status: 403 });
+      tipoEspacio = (esp as any).tipo;
+    } else {
+      espacioId = await getEspacioPersonal(supabase, user.id);
+      if (!espacioId) return NextResponse.json({ error: "no espacio personal" }, { status: 404 });
+      tipoEspacio = "personal";
+    }
 
     const fecha = hoyIso();
 
@@ -53,7 +80,7 @@ export async function GET() {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: SYSTEM_PROMPT },
+        { role: "system", content: getSystemPrompt(tipoEspacio) },
         { role: "user", content: `Contexto del usuario hoy:\n${ctxStr}\n\nDevuélveme JSON con: saludo (saludo del día con su nombre), frase (una frase motivacional o bíblica corta y relevante), fortalezas (1 frase corta sobre qué está haciendo bien), debilidades (1 frase sobre qué falta), sugerencia (1 acción concreta para hoy). Cada campo máximo 25 palabras. Sé específico con los números cuando aplique.` },
       ],
       response_format: { type: "json_object" },
@@ -87,15 +114,19 @@ export async function GET() {
 }
 
 // Forzar regeneración (para botón "actualizar")
-export async function POST() {
+export async function POST(req: Request) {
   try {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "no auth" }, { status: 401 });
-    const espacioId = await getEspacioPersonal(supabase, user.id);
-    if (!espacioId) return NextResponse.json({ error: "no espacio personal" }, { status: 404 });
+    const url = new URL(req.url);
+    let espacioId = url.searchParams.get("espacio_id");
+    if (!espacioId) {
+      espacioId = await getEspacioPersonal(supabase, user.id);
+      if (!espacioId) return NextResponse.json({ error: "no espacio personal" }, { status: 404 });
+    }
     await supabase.from("coach_consejos").delete().eq("espacio_id", espacioId).eq("perfil_id", user.id).eq("fecha", hoyIso());
-    return GET();
+    return GET(req);
   } catch (e: any) {
     return NextResponse.json({ error: e.message ?? "error" }, { status: 500 });
   }
