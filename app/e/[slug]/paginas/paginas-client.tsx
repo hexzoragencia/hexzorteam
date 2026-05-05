@@ -293,10 +293,13 @@ export function PaginasClient({ espacioId, initial }: { espacioId: string; initi
 }
 
 function UrlRow({ icon, label, url, buttonLabel, buttonColor, onCopy }: {
-  icon: React.ReactNode; label: string; url: string;
+  icon: React.ReactNode; label: string; url: string | null | undefined;
   buttonLabel: string; buttonColor: "primary" | "blue";
   onCopy: () => void;
 }) {
+  // Defensa: si url es vacío/null, no renderizar nada
+  if (!url || typeof url !== "string") return null;
+  const urlClean = url.replace(/^https?:\/\//, "");
   return (
     <div className="rounded-md border bg-muted/30 px-2.5 py-1.5">
       <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wide text-muted-foreground font-semibold mb-1">
@@ -304,20 +307,27 @@ function UrlRow({ icon, label, url, buttonLabel, buttonColor, onCopy }: {
       </div>
       <a href={url} target="_blank" rel="noopener noreferrer"
         className="text-xs hover:underline break-all line-clamp-1 mb-1.5 block">
-        {url.replace(/^https?:\/\//, "")}
+        {urlClean}
       </a>
       <div className="flex gap-1">
-        <Button size="sm" variant="outline" className="h-6 text-[11px] px-2 flex-1" onClick={onCopy}>
-          <Copy className="h-3 w-3 mr-1" /> Copiar
-        </Button>
-        <Button asChild size="sm" className={cn(
-          "h-6 text-[11px] px-2 flex-1",
-          buttonColor === "blue" && "bg-blue-500 hover:bg-blue-600 text-white",
-        )}>
-          <a href={url} target="_blank" rel="noopener noreferrer">
-            <ExternalLink className="h-3 w-3 mr-1" /> {buttonLabel}
-          </a>
-        </Button>
+        <button
+          type="button"
+          onClick={onCopy}
+          className="h-6 text-[11px] px-2 flex-1 inline-flex items-center justify-center gap-1 rounded-md border border-input bg-background hover:bg-accent transition"
+        >
+          <Copy className="h-3 w-3" /> Copiar
+        </button>
+        <a
+          href={url} target="_blank" rel="noopener noreferrer"
+          className={cn(
+            "h-6 text-[11px] px-2 flex-1 inline-flex items-center justify-center gap-1 rounded-md font-medium transition",
+            buttonColor === "blue"
+              ? "bg-blue-500 hover:bg-blue-600 text-white"
+              : "bg-primary hover:bg-primary/90 text-primary-foreground",
+          )}
+        >
+          <ExternalLink className="h-3 w-3" /> {buttonLabel}
+        </a>
       </div>
     </div>
   );
