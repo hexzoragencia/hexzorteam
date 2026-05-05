@@ -6,7 +6,7 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Building2, User, Lock, Save, Check } from "lucide-react";
+import { Building2, User, Lock, Save, Check, Trash2, AlertTriangle } from "lucide-react";
 import type { Espacio } from "@/lib/types";
 
 export function EspacioClient({ espacio }: { espacio: Espacio }) {
@@ -17,8 +17,23 @@ export function EspacioClient({ espacio }: { espacio: Espacio }) {
   const [pinNuevo, setPinNuevo] = useState("");
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [borrando, setBorrando] = useState(false);
 
   const dirty = nombre.trim() !== espacio.nombre || moneda !== espacio.moneda;
+
+  async function eliminarEspacio() {
+    if (confirmText !== espacio.nombre) {
+      alert(`Para eliminar, escribe exactamente: ${espacio.nombre}`);
+      return;
+    }
+    if (!confirm(`¿Estás 100% seguro? Se borrará "${espacio.nombre}" y TODAS sus transacciones, categorías, presupuestos, fondos, deudas y configuración. NO se puede deshacer.`)) return;
+    setBorrando(true);
+    const { error } = await supabase.from("espacios").delete().eq("id", espacio.id);
+    if (error) { alert(error.message); setBorrando(false); return; }
+    router.push("/espacios");
+    router.refresh();
+  }
 
   async function guardar() {
     const n = nombre.trim();
@@ -93,6 +108,36 @@ export function EspacioClient({ espacio }: { espacio: Espacio }) {
               <Save className="h-4 w-4 mr-1" /> {saving ? "Guardando..." : savedFlash ? "✓ Guardado" : "Guardar"}
             </Button>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Zona de peligro — eliminar espacio */}
+      <Card className="border-destructive/40">
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2 text-destructive">
+            <AlertTriangle className="h-4 w-4" /> Zona peligrosa
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Eliminar este espacio borrará permanentemente <b>todas sus transacciones, categorías, presupuestos, fondos, deudas, hábitos, objetivos y planeación</b>. Esta acción no se puede deshacer.
+          </p>
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground">Para confirmar, escribe exactamente: <span className="font-mono font-medium text-foreground">{espacio.nombre}</span></label>
+            <Input
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder={espacio.nombre}
+              className="border-destructive/40"
+            />
+          </div>
+          <Button
+            variant="destructive"
+            onClick={eliminarEspacio}
+            disabled={confirmText !== espacio.nombre || borrando}
+          >
+            <Trash2 className="h-4 w-4 mr-1" /> {borrando ? "Eliminando..." : "Eliminar este espacio"}
+          </Button>
         </CardContent>
       </Card>
 

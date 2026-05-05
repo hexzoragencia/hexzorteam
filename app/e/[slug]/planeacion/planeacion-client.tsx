@@ -407,9 +407,9 @@ function DayView({
                     </div>
                     {t.descripcion && <p className="text-xs text-muted-foreground mt-1">{t.descripcion}</p>}
                   </div>
-                  <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onEditar(t)}><Pencil className="h-3.5 w-3.5" /></Button>
-                    <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => onBorrar(t.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
+                  <div className="flex gap-0.5 shrink-0">
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => onEditar(t)}><Pencil className="h-3.5 w-3.5" /></Button>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={() => onBorrar(t.id)}><Trash2 className="h-3.5 w-3.5" /></Button>
                   </div>
                 </div>
               );

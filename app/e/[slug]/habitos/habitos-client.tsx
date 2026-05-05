@@ -299,9 +299,9 @@ export function HabitosClient({
                         ) : (
                           <div className="flex items-center justify-between gap-2 group">
                             <span className="font-medium text-sm truncate">{h.nombre}</span>
-                            <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => { setEditingId(h.id); setEditValue(h.nombre); }}><Pencil className="h-3 w-3" /></Button>
-                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => archivar(h.id)}><Trash2 className="h-3 w-3" /></Button>
+                            <div className="flex gap-0.5">
+                              <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => { setEditingId(h.id); setEditValue(h.nombre); }}><Pencil className="h-3 w-3" /></Button>
+                              <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => archivar(h.id)}><Trash2 className="h-3 w-3" /></Button>
                             </div>
                           </div>
                         )}

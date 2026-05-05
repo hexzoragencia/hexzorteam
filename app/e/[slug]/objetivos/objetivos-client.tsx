@@ -426,7 +426,7 @@ export function ObjetivosClient({
                         <div key={s.id} className="flex items-center gap-2 text-sm group">
                           <input type="checkbox" checked={s.completada} onChange={() => toggleSubtarea(s)} className="rounded shrink-0" />
                           <span className={cn("flex-1", s.completada && "line-through text-muted-foreground")}>{s.titulo}</span>
-                          <Button size="icon" variant="ghost" className="h-6 w-6 opacity-0 group-hover:opacity-100" onClick={() => borrarSubtarea(s.id)}><X className="h-3 w-3" /></Button>
+                          <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-destructive shrink-0" onClick={() => borrarSubtarea(s.id)}><X className="h-3 w-3" /></Button>
                         </div>
                       ))}
                       <div className="flex gap-1.5 pt-1">

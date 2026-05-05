@@ -4,10 +4,10 @@ import { redirect } from "next/navigation";
 import { getCurrentUser, isSuperAdmin } from "@/lib/espacio";
 import { createClient } from "@/lib/supabase/server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Users, Building2, Receipt, Activity, ArrowLeft, Clock, Check, X, UserCheck, GraduationCap } from "lucide-react";
+import { Shield, Users, Building2, Receipt, Activity, ArrowLeft, Clock, Check, X, UserCheck, GraduationCap, Trash2 } from "lucide-react";
 import { LogoutButton } from "@/app/espacios/logout-button";
 import { cn } from "@/lib/utils";
-import { aprobarUsuario, rechazarUsuario } from "./actions";
+import { aprobarUsuario, rechazarUsuario, eliminarUsuario } from "./actions";
 
 type AdminUsuario = {
   id: string;
@@ -173,6 +173,7 @@ export default async function AdminPage() {
                       <th className="px-4 py-3 text-left">Registro</th>
                       <th className="px-4 py-3 text-left">Última actividad</th>
                       <th className="px-4 py-3 text-left">Actividad reciente</th>
+                      <th className="px-4 py-3 text-right">Acciones</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -204,6 +205,20 @@ export default async function AdminPage() {
                               activoSem ? "bg-success/15 text-success" : "bg-muted text-muted-foreground"
                             )}>{activoSem ? "Activo" : "Inactivo"}</span>
                           </td>
+                          <td className="px-4 py-3 text-right">
+                            {!esYo && (
+                              <form action={eliminarUsuario}>
+                                <input type="hidden" name="target_id" value={u.id} />
+                                <button
+                                  type="submit"
+                                  className="text-xs text-muted-foreground hover:text-destructive inline-flex items-center gap-1 px-2 py-1 rounded hover:bg-destructive/10 transition"
+                                  title={`Eliminar ${u.nombre}`}
+                                >
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                </button>
+                              </form>
+                            )}
+                          </td>
                         </tr>
                       );
                     })}
@@ -230,10 +245,18 @@ export default async function AdminPage() {
                       <div className="text-sm">{u.nombre}</div>
                       <div className="text-xs text-muted-foreground">{u.email}</div>
                     </div>
-                    <form action={aprobarUsuario}>
-                      <input type="hidden" name="target_id" value={u.id} />
-                      <button type="submit" className="text-xs text-primary hover:underline">Reactivar</button>
-                    </form>
+                    <div className="flex items-center gap-3">
+                      <form action={aprobarUsuario}>
+                        <input type="hidden" name="target_id" value={u.id} />
+                        <button type="submit" className="text-xs text-primary hover:underline">Reactivar</button>
+                      </form>
+                      <form action={eliminarUsuario}>
+                        <input type="hidden" name="target_id" value={u.id} />
+                        <button type="submit" className="text-xs text-muted-foreground hover:text-destructive inline-flex items-center gap-1">
+                          <Trash2 className="h-3 w-3" /> Eliminar
+                        </button>
+                      </form>
+                    </div>
                   </li>
                 ))}
               </ul>
