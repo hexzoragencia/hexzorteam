@@ -7,6 +7,7 @@ import {
   LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard,
   Calculator, Settings, LogOut, Menu, X, ChevronDown, ChevronRight, ChevronLeft,
   Building2, User, Lock, Plus, BookOpenCheck, Palette, Sparkles, Rocket, Target, CalendarDays,
+  Package, TrendingUp, Briefcase,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -15,7 +16,7 @@ import { cn } from "@/lib/utils";
 import type { Espacio } from "@/lib/types";
 
 const ICONS: Record<string, any> = {
-  LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard, Calculator, Settings, BookOpenCheck, Palette, Sparkles, Rocket, Target, CalendarDays, Building2,
+  LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard, Calculator, Settings, BookOpenCheck, Palette, Sparkles, Rocket, Target, CalendarDays, Building2, Package, TrendingUp, Briefcase,
 };
 
 type NavItem = { href: string; label: string; icon: string };
@@ -58,6 +59,17 @@ function buildNav(tipo: "empresarial" | "personal"): NavEntry[] {
     ],
   };
 
+  const operacion: NavGroup = {
+    id: "operacion",
+    label: "Operación",
+    icon: "Briefcase",
+    items: [
+      { href: "productos",  label: "Productos",         icon: "Package" },
+      { href: "campanas",   label: "Campañas ADS",      icon: "TrendingUp" },
+      { href: "proyeccion", label: "Proyección & Metas", icon: "Target" },
+    ],
+  };
+
   const entries: NavEntry[] = [dashboard, { kind: "group", group: contabilidad }];
 
   if (tipo === "personal") {
@@ -65,6 +77,7 @@ function buildNav(tipo: "empresarial" | "personal"): NavEntry[] {
   }
 
   if (tipo === "empresarial") {
+    entries.push({ kind: "group", group: operacion });
     entries.push({ kind: "item", item: { href: "calculadora", label: "Calculadora", icon: "Calculator" } });
   }
 
