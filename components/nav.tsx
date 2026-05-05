@@ -59,17 +59,18 @@ function buildNav(tipo: "empresarial" | "personal"): NavEntry[] {
     ],
   };
 
+  // Grupo Operación: 6 secciones empresariales (productos → bóveda)
   const operacion: NavGroup = {
     id: "operacion",
     label: "Operación",
     icon: "Briefcase",
     items: [
-      { href: "productos",  label: "Productos",         icon: "Package" },
-      { href: "campanas",   label: "Campañas ADS",      icon: "TrendingUp" },
+      { href: "productos",  label: "Productos",          icon: "Package" },
+      { href: "campanas",   label: "Campañas ADS",       icon: "TrendingUp" },
       { href: "proyeccion", label: "Proyección & Metas", icon: "Target" },
-      { href: "paginas",    label: "Páginas Ganadoras", icon: "Globe" },
-      { href: "recursos",   label: "Recursos",          icon: "Lightbulb" },
-      { href: "accesos",    label: "Bóveda de Accesos", icon: "KeyRound" },
+      { href: "paginas",    label: "Páginas Ganadoras",  icon: "Globe" },
+      { href: "recursos",   label: "Recursos",           icon: "Lightbulb" },
+      { href: "accesos",    label: "Bóveda de Accesos",  icon: "KeyRound" },
     ],
   };
 
