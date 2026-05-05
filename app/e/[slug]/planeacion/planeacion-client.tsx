@@ -190,9 +190,18 @@ export function PlaneacionClient({
                 <Textarea value={form.descripcion} onChange={(e) => setForm({ ...form, descripcion: e.target.value })} rows={2} />
               </div>
             </div>
-            <div className="flex gap-2 pt-1">
+            <div className="flex gap-2 pt-1 flex-wrap">
               <Button onClick={guardar}><Check className="h-4 w-4 mr-1" /> Guardar</Button>
               <Button variant="outline" onClick={cancelar}>Cancelar</Button>
+              {editingId && (
+                <Button
+                  variant="ghost"
+                  className="text-destructive hover:bg-destructive/10 hover:text-destructive ml-auto"
+                  onClick={async () => { await borrar(editingId); cancelar(); }}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" /> Eliminar tarea
+                </Button>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -313,6 +322,13 @@ function DayColumn({
                 <p className={cn("font-semibold truncate text-[11px] leading-tight", t.completada && "line-through")}>{t.titulo}</p>
                 {altura > 30 && <p className="text-[10px] opacity-70">{formatHora(t.hora_inicio)}</p>}
               </div>
+              <button
+                onClick={(e) => { e.stopPropagation(); onBorrar(t.id); }}
+                className="shrink-0 h-3.5 w-3.5 rounded hover:bg-black/20 flex items-center justify-center opacity-60 hover:opacity-100"
+                title="Eliminar"
+              >
+                <X className="h-2.5 w-2.5" />
+              </button>
             </div>
           </div>
         );
@@ -327,7 +343,14 @@ function DayColumn({
                 <button onClick={(e) => { e.stopPropagation(); onToggle(t); }} className={cn("h-3 w-3 rounded border shrink-0", t.completada ? "bg-success border-success" : "border-current")}>
                   {t.completada && <Check className="h-2 w-2 text-white" />}
                 </button>
-                <span className={cn("truncate", t.completada && "line-through")}>{t.titulo}</span>
+                <span className={cn("truncate flex-1", t.completada && "line-through")}>{t.titulo}</span>
+                <button
+                  onClick={(e) => { e.stopPropagation(); onBorrar(t.id); }}
+                  className="shrink-0 h-3 w-3 rounded hover:bg-black/20 flex items-center justify-center opacity-60 hover:opacity-100"
+                  title="Eliminar"
+                >
+                  <X className="h-2 w-2" />
+                </button>
               </div>
             );
           })}
