@@ -141,6 +141,8 @@ export interface Habito {
   frecuencia_semanal: number; // 1-7 (días por semana esperados)
   orden: number;
   archivado: boolean;
+  hora_desde: string | null;  // "HH:MM:SS" — opcional
+  hora_hasta: string | null;  // "HH:MM:SS" — opcional
   created_at: string;
 }
 

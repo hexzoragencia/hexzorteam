@@ -27,6 +27,8 @@ export function HabitosClient({
   const [marcas, setMarcas] = useState<HabitoMarca[]>(initialMarcas);
   const [showForm, setShowForm] = useState(false);
   const [nuevoNombre, setNuevoNombre] = useState("");
+  const [nuevoHoraDesde, setNuevoHoraDesde] = useState("");
+  const [nuevoHoraHasta, setNuevoHoraHasta] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [, startTransition] = useTransition();
@@ -87,12 +89,15 @@ export function HabitosClient({
   async function agregarHabito() {
     const nombre = nuevoNombre.trim();
     if (!nombre) return;
-    const { data, error } = await supabase.from("habitos").insert({
+    const payload: any = {
       espacio_id: espacio.id, nombre, orden: habitos.length,
-    }).select().single();
+      hora_desde: nuevoHoraDesde || null,
+      hora_hasta: nuevoHoraHasta || null,
+    };
+    const { data, error } = await supabase.from("habitos").insert(payload).select().single();
     if (error) { alert(error.message); return; }
     setHabitos([...habitos, data as Habito]);
-    setNuevoNombre("");
+    setNuevoNombre(""); setNuevoHoraDesde(""); setNuevoHoraHasta("");
     setShowForm(false);
     router.refresh();
   }
@@ -201,15 +206,38 @@ export function HabitosClient({
       {/* Form rápido para agregar hábito */}
       {showForm && (
         <Card>
-          <CardContent className="pt-6 flex gap-2">
+          <CardContent className="pt-6 space-y-3">
             <Input
-              placeholder="Ej. Levantarme a las 5:00 AM"
+              placeholder="Ej. Ejercicio matutino"
               value={nuevoNombre}
               onChange={(e) => setNuevoNombre(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && agregarHabito()}
               autoFocus
             />
-            <Button onClick={agregarHabito}><Check className="h-4 w-4" /></Button>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-[11px] text-muted-foreground">Hora desde (opcional)</label>
+                <Input
+                  type="time"
+                  value={nuevoHoraDesde}
+                  onChange={(e) => setNuevoHoraDesde(e.target.value)}
+                  placeholder="06:00"
+                />
+              </div>
+              <div>
+                <label className="text-[11px] text-muted-foreground">Hora hasta (opcional)</label>
+                <Input
+                  type="time"
+                  value={nuevoHoraHasta}
+                  onChange={(e) => setNuevoHoraHasta(e.target.value)}
+                  placeholder="08:00"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">El rango es opcional. Si lo defines, sabrás exactamente cuándo te toca este hábito.</p>
+            <div className="flex gap-2">
+              <Button onClick={agregarHabito}><Check className="h-4 w-4 mr-1" /> Crear hábito</Button>
+              <Button variant="outline" onClick={() => { setShowForm(false); setNuevoNombre(""); setNuevoHoraDesde(""); setNuevoHoraHasta(""); }}>Cancelar</Button>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -298,8 +326,15 @@ export function HabitosClient({
                           </div>
                         ) : (
                           <div className="flex items-center justify-between gap-2 group">
-                            <span className="font-medium text-sm truncate">{h.nombre}</span>
-                            <div className="flex gap-0.5">
+                            <div className="min-w-0 flex-1">
+                              <span className="font-medium text-sm truncate block">{h.nombre}</span>
+                              {(h.hora_desde || h.hora_hasta) && (
+                                <span className="text-[10px] text-muted-foreground tabular-nums">
+                                  {h.hora_desde?.slice(0, 5) || "?"} – {h.hora_hasta?.slice(0, 5) || "?"}
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex gap-0.5 shrink-0">
                               <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-foreground" onClick={() => { setEditingId(h.id); setEditValue(h.nombre); }}><Pencil className="h-3 w-3" /></Button>
                               <Button size="icon" variant="ghost" className="h-6 w-6 text-muted-foreground hover:text-destructive" onClick={() => archivar(h.id)}><Trash2 className="h-3 w-3" /></Button>
                             </div>

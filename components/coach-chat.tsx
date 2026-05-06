@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { Send, X, Loader2, Sparkles, MessageCircle } from "lucide-react";
+import { useFloatingCorner, cornerClasses } from "./floating-pos";
 
 interface Mensaje {
   id: string;
@@ -33,6 +34,7 @@ const SALUDO_INICIAL: Mensaje = {
 
 export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   const router = useRouter();
+  const { corner } = useFloatingCorner();
   const [open, setOpen] = useState(false);
   const [mensajes, setMensajes] = useState<Mensaje[]>([SALUDO_INICIAL]);
   const [texto, setTexto] = useState("");
@@ -110,7 +112,7 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
     return (
       <button
         onClick={() => setOpen(true)}
-        className="fixed bottom-52 right-12 z-50 group flex flex-col items-end"
+        className={cn("fixed z-50 group flex flex-col items-end", cornerClasses(corner, true))}
         aria-label="Abrir chat con tu coach"
       >
         {/* Burbuja "tipo nube" — siempre visible */}
@@ -148,7 +150,7 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
 
   // ===== PANEL ABIERTO =====
   return (
-    <div className="fixed bottom-52 right-12 z-50 w-[360px] max-w-[calc(100vw-2rem)] h-[560px] max-h-[calc(100vh-8rem)] flex flex-col rounded-2xl border-2 border-primary/40 bg-card shadow-2xl overflow-hidden brand-glow">
+    <div className={cn("fixed z-50 w-[360px] max-w-[calc(100vw-2rem)] h-[560px] max-h-[calc(100vh-8rem)] flex flex-col rounded-2xl border-2 border-primary/40 bg-card shadow-2xl overflow-hidden brand-glow", cornerClasses(corner, true))}>
       {/* HEADER */}
       <div className="flex items-center gap-3 p-3 border-b bg-gradient-to-r from-primary/10 to-transparent">
         <div className="relative h-10 w-10 rounded-full overflow-hidden border-2 border-primary shrink-0">

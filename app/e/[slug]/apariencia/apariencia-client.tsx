@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { TEMAS, FUENTES, MODOS, DENSIDADES, type Preferencias, type Tema, type Fuente, type Modo, type Densidad } from "@/lib/apariencia";
 import { Check, Palette, Type, Sun, Maximize2, Save, RotateCcw } from "lucide-react";
 
-export function AparienciaClient({ initial }: { initial: Preferencias }) {
+export function AparienciaClient({ initial, espacioId, espacioNombre }: { initial: Preferencias; espacioId: string; espacioNombre: string }) {
   const router = useRouter();
   const supabase = createClient();
   const [prefs, setPrefs] = useState<Preferencias>(initial);
@@ -29,14 +29,16 @@ export function AparienciaClient({ initial }: { initial: Preferencias }) {
     setSaving(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { alert("Sesión expirada"); setSaving(false); return; }
-    const { error } = await supabase.from("preferencias_usuario").upsert({
+    // Guardar para este espacio en particular
+    const { error } = await supabase.from("preferencias_espacio").upsert({
       perfil_id: user.id,
+      espacio_id: espacioId,
       tema: prefs.tema,
       fuente: prefs.fuente,
       modo: prefs.modo,
       densidad: prefs.densidad,
       updated_at: new Date().toISOString(),
-    });
+    }, { onConflict: "perfil_id,espacio_id" });
     setSaving(false);
     if (error) { alert(error.message); return; }
     setSavedFlash(true);
@@ -55,7 +57,7 @@ export function AparienciaClient({ initial }: { initial: Preferencias }) {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-bold flex items-center gap-2"><Palette className="h-7 w-7 text-primary" /> Apariencia</h1>
-          <p className="text-muted-foreground">Personaliza tema, fuente, modo claro/oscuro y densidad. Los cambios son por usuario.</p>
+          <p className="text-muted-foreground">Personaliza tema, fuente, modo y densidad <b>solo para este espacio</b> ({espacioNombre}). Cada espacio tiene su propio estilo.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={resetear} disabled={!dirty && prefs.tema === "azul" && prefs.fuente === "Inter"}>

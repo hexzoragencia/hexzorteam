@@ -86,12 +86,12 @@ export function FondosClient({ espacio, initial }: { espacio: Espacio; initial: 
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-3xl font-bold">Fondos de reserva</h1>
-          <p className="text-muted-foreground">Ahorros con metas. Por cada fondo verás tu progreso y cuándo lo cumples.</p>
+          <h1 className="text-3xl font-bold">Ahorros</h1>
+          <p className="text-muted-foreground">Ahorros con metas. Cada uno con su progreso y fecha estimada de cumplimiento.</p>
         </div>
         {!showForm && (
           <Button onClick={() => { setShowForm(true); setEditingId(null); setForm(EMPTY); }}>
-            <Plus className="h-4 w-4 mr-1" /> Nuevo fondo
+            <Plus className="h-4 w-4 mr-1" /> Nuevo ahorro
           </Button>
         )}
       </div>
@@ -108,7 +108,7 @@ export function FondosClient({ espacio, initial }: { espacio: Espacio; initial: 
       {/* Form de crear/editar */}
       {showForm && (
         <Card>
-          <CardHeader><CardTitle>{editingId ? "Editar fondo" : "Nuevo fondo"}</CardTitle></CardHeader>
+          <CardHeader><CardTitle>{editingId ? "Editar ahorro" : "Nuevo ahorro"}</CardTitle></CardHeader>
           <CardContent className="space-y-3">
             <div className="grid sm:grid-cols-2 gap-3">
               <div className="space-y-1">

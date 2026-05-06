@@ -10,7 +10,7 @@ import { MoneyInput } from "@/components/ui/money-input";
 import { Select } from "@/components/ui/select";
 import { CATEGORIA_TIPOS, type Categoria, type PresupuestoMensual } from "@/lib/types";
 import { formatMoney, cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Info, Tags, Receipt } from "lucide-react";
 
 const MESES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const MESES_LARGOS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -95,6 +95,22 @@ export function PresupuestoClient({
           <h1 className="text-3xl font-bold">Presupuesto</h1>
           <p className="text-muted-foreground">Define lo esperado por categoría · compara contra lo real.</p>
         </div>
+
+      {/* Caja explicativa */}
+      <div className="w-full sm:w-auto sm:max-w-2xl bg-primary/5 border border-primary/30 rounded-lg p-3 flex gap-3">
+        <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        <div className="text-xs space-y-1 leading-relaxed">
+          <p className="font-semibold text-foreground">¿Cómo funciona el presupuesto?</p>
+          <p className="text-muted-foreground">
+            Aquí defines <b>cuánto piensas ganar y gastar</b> cada mes en cada categoría.
+            La app compara automáticamente esto con tus <b>transacciones reales</b> y te muestra si estás cumpliendo.
+          </p>
+          <p className="text-muted-foreground">
+            <Tags className="inline h-3 w-3" /> Las <b>categorías</b> son las etiquetas (alimentación, transporte, ventas...).
+            <Receipt className="inline h-3 w-3 ml-1" /> Las <b>transacciones</b> son cada movimiento que registras.
+          </p>
+        </div>
+      </div>
         <div className="flex items-center gap-2 rounded-lg border bg-card p-1">
           <Button size="icon" variant="ghost" onClick={() => cambiarMes(-1)}><ChevronLeft className="h-4 w-4" /></Button>
           <span className="font-semibold px-2 min-w-[120px] text-center">{MESES_LARGOS[mes - 1]} {ano}</span>

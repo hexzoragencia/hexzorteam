@@ -95,7 +95,7 @@ export function navItems(tipo: EspacioTipo) {
     { href: "transacciones", label: "Transacciones", icon: "Receipt" },
     { href: "presupuesto",  label: "Presupuesto",  icon: "Wallet" },
     { href: "categorias",   label: "Categorías",   icon: "Tags" },
-    { href: "fondos",       label: "Fondos de reserva", icon: "PiggyBank" },
+    { href: "fondos",       label: "Ahorros", icon: "PiggyBank" },
     { href: "deudas",       label: "Deudas (Snowball)", icon: "CreditCard" },
   ];
   if (tipo === "empresarial") {

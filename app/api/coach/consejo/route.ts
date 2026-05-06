@@ -76,12 +76,19 @@ export async function GET(req: Request) {
     const ctx = await recolectarContexto(supabase, espacioId);
     const ctxStr = JSON.stringify(ctx, null, 2);
 
+    // Obtener alias del usuario en este espacio (para saludo personalizado)
+    const [{ data: miembro }, { data: perfil }] = await Promise.all([
+      supabase.from("espacio_miembros").select("alias").eq("espacio_id", espacioId).eq("perfil_id", user.id).maybeSingle(),
+      supabase.from("perfiles").select("nombre").eq("id", user.id).maybeSingle(),
+    ]);
+    const aliasUsuario = ((miembro as any)?.alias || perfil?.nombre || "").trim() || "amigo";
+
     // Llamar OpenAI con structured output
     const completion = await openai.chat.completions.create({
       model: "gpt-4o-mini",
       messages: [
         { role: "system", content: getSystemPrompt(tipoEspacio) },
-        { role: "user", content: `Contexto del usuario hoy:\n${ctxStr}\n\nDevuélveme JSON con: saludo (saludo del día con su nombre), frase (una frase motivacional o bíblica corta y relevante), fortalezas (1 frase corta sobre qué está haciendo bien), debilidades (1 frase sobre qué falta), sugerencia (1 acción concreta para hoy). Cada campo máximo 25 palabras. Sé específico con los números cuando aplique.` },
+        { role: "user", content: `El usuario quiere que lo llames: "${aliasUsuario}"\n\nContexto del usuario hoy:\n${ctxStr}\n\nDevuélveme JSON con: saludo (saludo del día usando el nombre "${aliasUsuario}"), frase (una frase motivacional o bíblica corta y relevante), fortalezas (1 frase corta sobre qué está haciendo bien), debilidades (1 frase sobre qué falta), sugerencia (1 acción concreta para hoy). Cada campo máximo 25 palabras. Sé específico con los números cuando aplique.` },
       ],
       response_format: { type: "json_object" },
       temperature: 0.7,

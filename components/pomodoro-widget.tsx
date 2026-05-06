@@ -6,8 +6,9 @@ import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import type { Tarea, Espacio } from "@/lib/types";
-import { Play, Pause, X, Coffee, Brain, ChevronUp, ChevronDown } from "lucide-react";
+import { Play, Pause, X, Coffee, Brain, ChevronUp, ChevronDown, Move } from "lucide-react";
 import { hoyIso } from "@/lib/fechas";
+import { useFloatingCorner, cornerClasses, cornerLabel } from "./floating-pos";
 
 function etiquetaFecha(fecha: string): string {
   const hoyStr = hoyIso();
@@ -67,6 +68,7 @@ export function PomodoroWidget({ espacio, tareasHoy }: { espacio: Espacio; tarea
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
   const audioFiredRef = useRef(false);
+  const { corner, cycle } = useFloatingCorner();
 
   // Hidratar estado desde localStorage al montar
   useEffect(() => {
@@ -180,6 +182,7 @@ export function PomodoroWidget({ espacio, tareasHoy }: { espacio: Espacio; tarea
   }
 
   const tareasPendientes = tareasHoy.filter(t => !t.completada);
+  const posClass = cornerClasses(corner);
 
   // ===== RENDER =====
   if (estado === "idle") {
@@ -187,7 +190,7 @@ export function PomodoroWidget({ espacio, tareasHoy }: { espacio: Espacio; tarea
       return (
         <button
           onClick={() => setCollapsed(false)}
-          className="fixed bottom-4 right-4 z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 transition-transform flex items-center justify-center brand-glow"
+          className={cn("fixed z-50 h-12 w-12 rounded-full bg-primary text-primary-foreground shadow-lg hover:scale-105 transition-transform flex items-center justify-center brand-glow", posClass)}
           title="Abrir Pomodoro"
         >
           <Brain className="h-5 w-5" />
@@ -195,10 +198,15 @@ export function PomodoroWidget({ espacio, tareasHoy }: { espacio: Espacio; tarea
       );
     }
     return (
-      <div className="fixed bottom-4 right-4 z-50 w-72 rounded-xl border bg-card shadow-2xl p-4 space-y-3">
+      <div className={cn("fixed z-50 w-72 rounded-xl border bg-card shadow-2xl p-4 space-y-3", posClass)}>
         <div className="flex items-center justify-between">
           <span className="text-sm font-semibold flex items-center gap-1.5"><Brain className="h-4 w-4 text-primary" /> Pomodoro</span>
-          <button onClick={() => setCollapsed(true)} className="text-muted-foreground hover:text-foreground"><ChevronDown className="h-4 w-4" /></button>
+          <div className="flex items-center gap-0.5">
+            <button onClick={cycle} className="text-muted-foreground hover:text-foreground p-1" title={`Mover (actual: ${cornerLabel(corner)})`}>
+              <Move className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={() => setCollapsed(true)} className="text-muted-foreground hover:text-foreground p-1"><ChevronDown className="h-4 w-4" /></button>
+          </div>
         </div>
         <div>
           <label className="text-xs text-muted-foreground">Trabajar en…</label>
@@ -239,7 +247,8 @@ export function PomodoroWidget({ espacio, tareasHoy }: { espacio: Espacio; tarea
       <button
         onClick={() => setCollapsed(false)}
         className={cn(
-          "fixed bottom-4 right-4 z-50 h-14 px-4 rounded-full shadow-lg hover:scale-105 transition-transform flex items-center gap-2 text-sm font-semibold",
+          "fixed z-50 h-14 px-4 rounded-full shadow-lg hover:scale-105 transition-transform flex items-center gap-2 text-sm font-semibold",
+          posClass,
           estado === "terminado" ? "bg-success text-success-foreground" :
           estado === "pausado" ? "bg-orange-500 text-white" :
           state!.tipo === "descanso" ? "bg-emerald-500 text-white" :
@@ -259,7 +268,7 @@ export function PomodoroWidget({ espacio, tareasHoy }: { espacio: Espacio; tarea
     "border-primary/50 bg-primary/5";
 
   return (
-    <div className={cn("fixed bottom-4 right-4 z-50 w-80 rounded-xl border-2 bg-card shadow-2xl p-4 space-y-3", tipoColor)}>
+    <div className={cn("fixed z-50 w-80 rounded-xl border-2 bg-card shadow-2xl p-4 space-y-3", posClass, tipoColor)}>
       <div className="flex items-center justify-between">
         <span className="text-xs uppercase tracking-wide font-semibold flex items-center gap-1.5">
           {state!.tipo === "descanso" ? <Coffee className="h-3.5 w-3.5" /> : <Brain className="h-3.5 w-3.5" />}
@@ -267,7 +276,12 @@ export function PomodoroWidget({ espacio, tareasHoy }: { espacio: Espacio; tarea
            estado === "pausado"   ? "Pausado" :
            state!.tipo === "descanso" ? "Descanso" : "Enfocado"}
         </span>
-        <button onClick={() => setCollapsed(true)} className="text-muted-foreground hover:text-foreground"><ChevronDown className="h-4 w-4" /></button>
+        <div className="flex items-center gap-0.5">
+          <button onClick={cycle} className="text-muted-foreground hover:text-foreground p-1" title={`Mover (${cornerLabel(corner)})`}>
+            <Move className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={() => setCollapsed(true)} className="text-muted-foreground hover:text-foreground p-1"><ChevronDown className="h-4 w-4" /></button>
+        </div>
       </div>
 
       <div className="text-center py-2">

@@ -66,7 +66,7 @@ function getSteps(nombre: string): Step[] {
       bullets: [
         { texto: "Calculadora multipaís → para validar productos antes de lanzar. Le das el costo del proveedor y te dice el precio de venta sugerido, CPA, utilidad y precio de comparación para CO/MX/EC/ES/CL." },
         { texto: "Configuración → ajustas los parámetros de la calculadora (flete, % entrega, % CPA objetivo) y se recalcula sola." },
-        { texto: "Fondos de reserva y Deudas (Snowball) → para ahorros con meta y plan de liquidación de deudas." },
+        { texto: "Ahorros y Deudas (Snowball) → ahorros con meta + plan de liquidación de deudas." },
       ],
     },
     {

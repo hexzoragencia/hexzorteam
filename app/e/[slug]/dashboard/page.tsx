@@ -22,6 +22,17 @@ export default async function Dashboard({
   const espacio = await requireEspacio(params.slug);
   const supabase = createClient();
   const now = new Date();
+
+  // Alias del usuario en este espacio (para saludo personalizado)
+  const { data: { user } } = await supabase.auth.getUser();
+  let saludoNombre = "";
+  if (user) {
+    const [{ data: miembro }, { data: perfil }] = await Promise.all([
+      supabase.from("espacio_miembros").select("alias").eq("espacio_id", espacio.id).eq("perfil_id", user.id).maybeSingle(),
+      supabase.from("perfiles").select("nombre").eq("id", user.id).maybeSingle(),
+    ]);
+    saludoNombre = (miembro?.alias?.trim() || perfil?.nombre?.split(" ")[0] || "").trim();
+  }
   const ano = Number(searchParams.ano) || now.getFullYear();
   const mes = Number(searchParams.mes) || (now.getMonth() + 1);
 
@@ -237,6 +248,7 @@ export default async function Dashboard({
     <div className="space-y-6">
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
+          {saludoNombre && <p className="text-muted-foreground text-sm">Hola, {saludoNombre} 👋</p>}
           <h1 className="text-3xl font-bold">Dashboard</h1>
           <p className="text-muted-foreground">{espacio.nombre} · {espacio.tipo === "personal" ? "Personal" : "Empresarial"}</p>
         </div>

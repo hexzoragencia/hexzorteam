@@ -98,7 +98,7 @@ export default async function GuiaPage() {
             desc="Lo que planeas gastar/ganar cada mes por categoría. Cuando registras transacciones, se compara automáticamente lo real vs lo planeado y te avisa si te estás pasando."
           />
           <FeatureCard icon={<PiggyBank className="h-5 w-5 text-primary" />}
-            title="Fondos de reserva"
+            title="Ahorros"
             desc='Ahorros con meta y nombre — "Vacaciones", "Carro nuevo", "Fondo de emergencia". Defines cuánto quieres juntar, cuánto le metes mensual, y la app te dice cuándo lo tendrás listo.'
           />
           <FeatureCard icon={<CreditCard className="h-5 w-5 text-primary" />}
