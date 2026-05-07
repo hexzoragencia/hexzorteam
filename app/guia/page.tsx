@@ -9,7 +9,7 @@ import { redirect as nextRedirect } from "next/navigation";
 import {
   Building2, User, LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard,
   Calculator, Settings, Sparkles, Calendar, Target, Clock, BookOpen, Bot, ArrowLeft,
-  Lock, Lightbulb, MessageCircle, RefreshCw,
+  Lock, Lightbulb, MessageCircle, RefreshCw, BellRing,
 } from "lucide-react";
 
 export default async function GuiaPage() {
@@ -87,15 +87,11 @@ export default async function GuiaPage() {
           />
           <FeatureCard icon={<Receipt className="h-5 w-5 text-primary" />}
             title="Transacciones"
-            desc="El libro diario. Cada vez que ingresas o gastas, registras un movimiento aquí: monto, fecha, categoría y una descripción opcional. Es la fuente de verdad de todo lo demás."
+            desc="El libro diario. Cada vez que ingresas o gastas, registras un movimiento aquí: monto, fecha y descripción. La app le asigna categoría automáticamente."
           />
-          <FeatureCard icon={<Tags className="h-5 w-5 text-primary" />}
-            title="Categorías"
-            desc="Las etiquetas que organizan tu plata. Hay 6 tipos: Ingresos, Pagos programados (renta, internet), Suscripciones (Netflix, Spotify), Gasto mensual (comida, transporte), Ahorro y Deuda. Puedes editar las que vienen por defecto y crear las tuyas."
-          />
-          <FeatureCard icon={<Wallet className="h-5 w-5 text-primary" />}
-            title="Presupuesto"
-            desc="Lo que planeas gastar/ganar cada mes por categoría. Cuando registras transacciones, se compara automáticamente lo real vs lo planeado y te avisa si te estás pasando."
+          <FeatureCard icon={<BellRing className="h-5 w-5 text-primary" />}
+            title="Pagos del mes (NUEVO)"
+            desc='Tus pagos recurrentes con fecha — Netflix día 5, Internet día 10, etc. La app te avisa cuando se acercan. Al pagar, se crea la transacción automáticamente.'
           />
           <FeatureCard icon={<PiggyBank className="h-5 w-5 text-primary" />}
             title="Ahorros"

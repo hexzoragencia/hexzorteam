@@ -33,8 +33,6 @@ function buildNav(tipo: "empresarial" | "personal"): NavEntry[] {
     items: [
       { href: "transacciones", label: "Transacciones", icon: "Receipt" },
       { href: "pagos",         label: "Pagos del mes", icon: "BellRing" },
-      { href: "presupuesto",   label: "Presupuesto",   icon: "Wallet" },
-      { href: "categorias",    label: "Categorías",    icon: "Tags" },
       { href: "fondos",        label: "Ahorros",       icon: "PiggyBank" },
       { href: "deudas",        label: "Deudas",        icon: "CreditCard" },
     ],

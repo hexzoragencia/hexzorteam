@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { marcarTourCompletado } from "@/app/espacios/tour-actions";
 import {
   Sparkles, Building2, User, Receipt, LayoutDashboard, Calculator,
-  Bot, ChevronLeft, ChevronRight, X, ArrowRight,
+  Bot, ChevronLeft, ChevronRight, X, ArrowRight, BellRing,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -43,20 +43,33 @@ function getSteps(nombre: string): Step[] {
       intro:
         "Esta es la base. Cada vez que ingresas plata o gastas, lo registras en Transacciones (toma 10 segundos):",
       bullets: [
-        { texto: "1. Eliges la categoría (vienen 9 por defecto: alimentación, transporte, ingresos, etc.)" },
-        { texto: "2. Pones el monto y la fecha" },
-        { texto: "3. Una descripción opcional (\"pago Netflix\", \"venta producto X\")" },
+        { texto: "1. Pones el monto y una descripción rápida" },
+        { texto: "2. La app le asigna categoría automáticamente — tú no tienes que pensar en eso" },
+        { texto: "3. Listo, ya queda registrado" },
       ],
-      cta: "Si no encuentras una categoría que te sirva, las puedes crear o editar en \"Categorías\" — en cualquiera de los dos espacios.",
+      cta: "Mucho más fácil con el Coach IA: dile 'gasté 50k en mercado' y él lo registra.",
+    },
+    {
+      icon: <BellRing className="h-7 w-7" />,
+      titulo: "Pagos del mes — tus recordatorios",
+      intro:
+        "Esta es la sección más útil del día a día. Aquí pones tus pagos recurrentes (Netflix, internet, renta, etc.) con su fecha y monto, y la app te avisa cuando se acerca:",
+      bullets: [
+        { texto: "Cada pago tiene día (1-31), monto y recurrencia (mensual/semanal/anual)" },
+        { texto: "Cuando se acerca la fecha, aparece una alerta visible en el Dashboard" },
+        { texto: "Al pagarlo, se crea automáticamente la transacción para tu historial" },
+      ],
+      cta: 'También le puedes decir al Coach: "Netflix 36k todos los días 5" y queda agregado.',
     },
     {
       icon: <LayoutDashboard className="h-7 w-7" />,
-      titulo: "El Presupuesto vs el Dashboard",
+      titulo: "Tu Dashboard",
       intro:
-        "Una vez registres movimientos, dos cosas se vuelven útiles:",
+        "Tu vista de un vistazo:",
       bullets: [
-        { texto: "Presupuesto → defines cuánto piensas ganar y gastar cada mes por categoría. La app compara automáticamente lo planeado vs lo real y te avisa si te estás pasando." },
-        { texto: "Dashboard → tu vista de un vistazo: ingresos, gastos, capital total, alertas, top categorías y la sección \"Hoy y los últimos días\" para ver el día a día." },
+        { texto: "Ingresos, gastos, ahorrado y balance del mes" },
+        { texto: "Alerta si tienes pagos vencidos o próximos" },
+        { texto: "Sección 'Hoy y los últimos días' con tus gastos del día y la semana" },
       ],
     },
     {
@@ -84,10 +97,9 @@ function getSteps(nombre: string): Step[] {
       titulo: "¡Listo! Empieza por aquí:",
       intro: "Para arrancar bien, mi recomendación:",
       bullets: [
-        { texto: "1. Entra a tu espacio Personal o Empresarial (haz click en una de las cartas)" },
-        { texto: "2. Ve a \"Categorías\" y revisa que las que vienen te sirvan, o crea las tuyas" },
-        { texto: "3. Registra tu primera transacción en \"Transacciones\"" },
-        { texto: "4. Define tu Presupuesto del mes" },
+        { texto: "1. Entra a tu espacio Personal o Empresarial" },
+        { texto: "2. Ve a \"Pagos del mes\" y agrega tus pagos recurrentes (Netflix, internet, renta...)" },
+        { texto: "3. Registra una transacción en \"Transacciones\" o pídele al Coach IA que lo haga por ti" },
       ],
       cta: "Si en cualquier momento te quedan dudas, hay un botón \"Guía\" arriba que te explica cada cosa al detalle.",
     },
