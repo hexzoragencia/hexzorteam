@@ -8,7 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Building2, User, Lock, Plus, BookOpen, Shield, Sparkles, ArrowRight } from "lucide-react";
 import { LogoutButton } from "./logout-button";
 import { TourBienvenida } from "@/components/tour-bienvenida";
+import { EspacioCardCliente } from "./espacio-card";
 import type { Espacio } from "@/lib/types";
+
+type EspacioConRol = Espacio & { _esOwner: boolean };
 
 export default async function EspaciosPage() {
   const user = await getCurrentUser();
@@ -22,7 +25,20 @@ export default async function EspaciosPage() {
     .select("nombre, tour_completado").eq("id", user.id).maybeSingle();
   const tourPendiente = perfil?.tour_completado === false;
 
-  const espacios = await getMisEspacios();
+  const espaciosBase = await getMisEspacios();
+
+  // Cargar el rol del usuario en cada espacio para saber si puede eliminarlo
+  const { data: misRoles } = await supabase
+    .from("espacio_miembros")
+    .select("espacio_id, rol")
+    .eq("perfil_id", user.id);
+  const rolPorEspacio: Record<string, string> = {};
+  for (const m of misRoles ?? []) rolPorEspacio[m.espacio_id] = m.rol;
+
+  const espacios: EspacioConRol[] = espaciosBase.map((e) => ({
+    ...e,
+    _esOwner: rolPorEspacio[e.id] === "owner",
+  }));
   const empresariales = espacios.filter((e) => e.tipo === "empresarial");
   const personales = espacios.filter((e) => e.tipo === "personal");
   const esAdmin = await isSuperAdmin();
@@ -112,6 +128,7 @@ export default async function EspaciosPage() {
             subtitulo="Para tu negocio"
             icon={<Building2 className="h-5 w-5" />}
             espacios={empresariales}
+            esSuperAdmin={esAdmin}
           />
         )}
 
@@ -123,6 +140,7 @@ export default async function EspaciosPage() {
             subtitulo="Privado · puedes proteger con PIN"
             icon={<User className="h-5 w-5" />}
             espacios={personales}
+            esSuperAdmin={esAdmin}
           />
         )}
       </div>
@@ -131,13 +149,14 @@ export default async function EspaciosPage() {
 }
 
 function SectionEspacios({
-  tipo, titulo, subtitulo, icon, espacios,
+  tipo, titulo, subtitulo, icon, espacios, esSuperAdmin,
 }: {
   tipo: "empresarial" | "personal";
   titulo: string;
   subtitulo: string;
   icon: React.ReactNode;
-  espacios: Espacio[];
+  espacios: EspacioConRol[];
+  esSuperAdmin?: boolean;
 }) {
   return (
     <section className="space-y-3">
@@ -157,23 +176,12 @@ function SectionEspacios({
 
       <div className="grid gap-3 sm:grid-cols-2">
         {espacios.map((e) => (
-          <Link key={e.id} href={`/e/${e.slug}/dashboard`} className="group">
-            <Card className="hover:border-primary hover:shadow-md transition-all cursor-pointer h-full">
-              <CardContent className="p-5 flex items-center gap-4">
-                <div className={`shrink-0 rounded-lg p-3 ${tipo === "empresarial" ? "bg-primary/10 text-primary" : "bg-violet-500/10 text-violet-500"}`}>
-                  {tipo === "empresarial" ? <Building2 className="h-5 w-5" /> : <User className="h-5 w-5" />}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="font-semibold flex items-center gap-2 truncate">
-                    <span className="truncate">{e.nombre}</span>
-                    {e.pin_hash && <Lock className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
-                  </div>
-                  <div className="text-xs text-muted-foreground">{tipo === "empresarial" ? "Empresarial" : "Personal"} · {e.moneda}</div>
-                </div>
-                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-0.5 transition shrink-0" />
-              </CardContent>
-            </Card>
-          </Link>
+          <EspacioCardCliente
+            key={e.id}
+            espacio={e}
+            tipo={tipo}
+            esOwner={e._esOwner || !!esSuperAdmin}
+          />
         ))}
 
         {espacios.length === 0 && (
