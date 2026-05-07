@@ -27,7 +27,12 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
-  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/register");
+  // Páginas accesibles sin sesión (auth flow)
+  const isAuthPage =
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/register") ||
+    pathname.startsWith("/recuperar-password") ||
+    pathname.startsWith("/cambiar-password");
   const isPublicAsset = pathname.startsWith("/auth/callback");
 
   if (!user && !isAuthPage && !isPublicAsset) {
@@ -36,7 +41,9 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  if (user && isAuthPage) {
+  // Si entra de /cambiar-password, dejarlo aunque tenga sesión (acaba de venir del email).
+  // Solo /login y /register redirigen al home si ya hay sesión.
+  if (user && (pathname.startsWith("/login") || pathname.startsWith("/register"))) {
     const url = request.nextUrl.clone();
     url.pathname = "/";
     return NextResponse.redirect(url);

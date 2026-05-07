@@ -15,5 +15,5 @@ export default async function EspacioConfigPage({ params }: { params: { slug: st
     aliasInicial = data?.alias ?? null;
   }
 
-  return <EspacioClient espacio={espacio} aliasInicial={aliasInicial} />;
+  return <EspacioClient espacio={espacio} aliasInicial={aliasInicial} emailActual={user?.email ?? ""} />;
 }

@@ -6,10 +6,10 @@ import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Building2, User, Lock, Save, Check, Trash2, AlertTriangle, Smile } from "lucide-react";
+import { Building2, User, Lock, Save, Check, Trash2, AlertTriangle, Smile, KeyRound, Mail } from "lucide-react";
 import type { Espacio } from "@/lib/types";
 
-export function EspacioClient({ espacio, aliasInicial }: { espacio: Espacio; aliasInicial: string | null }) {
+export function EspacioClient({ espacio, aliasInicial, emailActual }: { espacio: Espacio; aliasInicial: string | null; emailActual: string }) {
   const router = useRouter();
   const supabase = createClient();
   const [nombre, setNombre] = useState(espacio.nombre);
@@ -20,6 +20,37 @@ export function EspacioClient({ espacio, aliasInicial }: { espacio: Espacio; ali
   const [savedFlash, setSavedFlash] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [borrando, setBorrando] = useState(false);
+  // Cambiar email / password
+  const [emailNuevo, setEmailNuevo] = useState("");
+  const [savingEmail, setSavingEmail] = useState(false);
+  const [passwordNueva, setPasswordNueva] = useState("");
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [savingPwd, setSavingPwd] = useState(false);
+
+  async function cambiarEmail() {
+    const e = emailNuevo.trim();
+    if (!e || !e.includes("@")) { alert("Email inválido"); return; }
+    if (e === emailActual) { alert("Ese ya es tu email actual"); return; }
+    if (!confirm(`¿Cambiar tu email a "${e}"? Te enviaremos un correo de confirmación al nuevo email — debes hacer click en el link para que el cambio se aplique.`)) return;
+    setSavingEmail(true);
+    const { error } = await supabase.auth.updateUser({ email: e });
+    setSavingEmail(false);
+    if (error) { alert(error.message); return; }
+    alert("Listo. Te enviamos un correo de confirmación al email nuevo. Revisa tu bandeja y haz click en el link para activar el cambio.");
+    setEmailNuevo("");
+  }
+
+  async function cambiarPassword() {
+    const p = passwordNueva;
+    if (p.length < 6) { alert("La contraseña debe tener al menos 6 caracteres"); return; }
+    if (p !== passwordConfirm) { alert("Las contraseñas no coinciden"); return; }
+    setSavingPwd(true);
+    const { error } = await supabase.auth.updateUser({ password: p });
+    setSavingPwd(false);
+    if (error) { alert(error.message); return; }
+    alert("✅ Contraseña actualizada. La próxima vez que entres usa la nueva.");
+    setPasswordNueva(""); setPasswordConfirm("");
+  }
 
   const dirty = nombre.trim() !== espacio.nombre || moneda !== espacio.moneda || alias.trim() !== (aliasInicial ?? "");
 
@@ -127,6 +158,61 @@ export function EspacioClient({ espacio, aliasInicial }: { espacio: Espacio; ali
           <div className="flex gap-2 pt-2">
             <Button onClick={guardar} disabled={!dirty || saving}>
               <Save className="h-4 w-4 mr-1" /> {saving ? "Guardando..." : savedFlash ? "✓ Guardado" : "Guardar"}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Mi cuenta — cambiar email / password */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-primary" /> Mi cuenta
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          {/* Email actual + cambiar */}
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Mail className="h-3.5 w-3.5" /> Email actual
+            </label>
+            <div className="text-sm font-mono bg-muted/30 rounded-md px-3 py-2 border">{emailActual}</div>
+            <div className="flex gap-2 pt-1">
+              <Input
+                type="email"
+                placeholder="Nuevo email (ej: nuevo@correo.com)"
+                value={emailNuevo}
+                onChange={(e) => setEmailNuevo(e.target.value)}
+              />
+              <Button onClick={cambiarEmail} disabled={savingEmail || !emailNuevo}>
+                {savingEmail ? "Enviando..." : "Cambiar"}
+              </Button>
+            </div>
+            <p className="text-[11px] text-muted-foreground">Recibirás un correo de confirmación en el email nuevo. Hasta que confirmes ahí, sigues entrando con el email actual.</p>
+          </div>
+
+          {/* Cambiar contraseña */}
+          <div className="space-y-1.5 pt-3 border-t">
+            <label className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <Lock className="h-3.5 w-3.5" /> Cambiar contraseña
+            </label>
+            <Input
+              type="password"
+              placeholder="Nueva contraseña (mín 6 caracteres)"
+              value={passwordNueva}
+              onChange={(e) => setPasswordNueva(e.target.value)}
+            />
+            <Input
+              type="password"
+              placeholder="Confirma la nueva contraseña"
+              value={passwordConfirm}
+              onChange={(e) => setPasswordConfirm(e.target.value)}
+            />
+            <Button
+              onClick={cambiarPassword}
+              disabled={savingPwd || !passwordNueva || passwordNueva !== passwordConfirm || passwordNueva.length < 6}
+            >
+              {savingPwd ? "Guardando..." : "Cambiar contraseña"}
             </Button>
           </div>
         </CardContent>
