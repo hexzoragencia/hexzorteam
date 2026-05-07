@@ -43,6 +43,13 @@ const SYSTEM = `Eres el coach personal del usuario en su app de finanzas + produ
 ## Conversación
 - conversar → responde natural; cuando falta info, hay charla, o quieres preguntar
 
+# RECORDAR EL CONTEXTO DE LA CONVERSACIÓN
+- Si en mensajes anteriores listaste varios matches y dijiste "¿borro TODAS?" o "sé más específico"
+  y el usuario responde con "sí", "todos", "borra todos", "borra todo", "elimina todos", "esos sí",
+  "ya, dale", "ok", "confirmo", "borralos", entonces RE-EJECUTA la última acción de borrado
+  agregando el parámetro todos=true. NO PIDAS de nuevo aclaración.
+- Solo pide aclaración LA PRIMERA VEZ. Si ya el user dijo "sí", actúa.
+
 # REGLAS IMPORTANTES
 1. **Fechas relativas**: convierte a YYYY-MM-DD usando la fecha que te paso como referencia. "Mañana" = hoy + 1 día.
 2. **Montos colombianos**: "50k" = 50000, "1M" = 1000000, "100 lucas" = 100000, "1 millón quinientos" = 1500000.
@@ -180,13 +187,14 @@ const tools: any[] = [
     type: "function",
     function: {
       name: "borrar_transaccion",
-      description: "Borra una transacción que el usuario ya registró. Identifícala por descripción, categoría, monto o fecha (combinación de varios).",
+      description: "Borra una transacción que el usuario ya registró. Identifícala por descripción, categoría, monto o fecha. Si hay duplicados y el user confirma, usa todos=true.",
       parameters: {
         type: "object",
         properties: {
           descripcion_o_categoria: { type: "string", description: "Texto que ayude a identificar (ej 'gym', 'pauta', 'mercado')" },
           monto: { type: "number", description: "Monto exacto, opcional para precisar" },
           fecha: { type: "string", description: "YYYY-MM-DD, opcional. Default: últimos 7 días" },
+          todos: { type: "boolean", description: "true para borrar TODOS los matches (cuando user confirma)" },
         },
         required: ["descripcion_o_categoria"],
       },
@@ -216,12 +224,13 @@ const tools: any[] = [
     type: "function",
     function: {
       name: "borrar_tarea",
-      description: "Elimina una tarea ya programada en planeación. Identifícala por título/fecha.",
+      description: "Elimina una tarea ya programada en planeación. Si hay duplicados y user confirma, usa todos=true.",
       parameters: {
         type: "object",
         properties: {
           texto_tarea: { type: "string", description: "Título o palabra clave" },
           fecha: { type: "string", description: "YYYY-MM-DD para filtrar, opcional. Default: hoy" },
+          todos: { type: "boolean", description: "true para borrar TODAS las matches" },
         },
         required: ["texto_tarea"],
       },
@@ -250,11 +259,12 @@ const tools: any[] = [
     type: "function",
     function: {
       name: "borrar_habito",
-      description: "Archiva (borra) un hábito existente. Las marcas anteriores se conservan pero el hábito ya no aparece activo.",
+      description: "Archiva (borra) un hábito existente. Si hay duplicados y el usuario confirma 'borrar todos', usa todos=true para archivarlos todos. Las marcas anteriores se conservan pero el hábito ya no aparece activo.",
       parameters: {
         type: "object",
         properties: {
           texto_habito: { type: "string", description: "Nombre o palabra clave del hábito" },
+          todos: { type: "boolean", description: "true si el usuario quiere borrar TODOS los matches (incluyendo duplicados)" },
         },
         required: ["texto_habito"],
       },
@@ -420,6 +430,22 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
     const horaDesde = args.hora_desde ? `${args.hora_desde}:00` : null;
     const horaHasta = args.hora_hasta ? `${args.hora_hasta}:00` : null;
 
+    // Anti-duplicados: si ya existe un hábito activo con nombre similar, no crear otro
+    const { data: existentes } = await sb.from("habitos")
+      .select("id, nombre, hora_desde, hora_hasta")
+      .eq("espacio_id", espacioId).eq("archivado", false);
+    const nombreLower = nombre.toLowerCase();
+    const yaExiste = (existentes ?? []).find((h: any) =>
+      h.nombre.toLowerCase() === nombreLower ||
+      h.nombre.toLowerCase().includes(nombreLower) ||
+      nombreLower.includes(h.nombre.toLowerCase())
+    );
+    if (yaExiste) {
+      const ya = yaExiste as any;
+      const horaActual = ya.hora_desde ? ` (a las ${ya.hora_desde.slice(0,5)})` : "";
+      return `Ya tienes el hábito "${ya.nombre}"${horaActual}. Si quieres cambiarle la hora dime "cambia el horario de ${ya.nombre} a X". O si quieres agregarlo igual, dame un nombre distinto.`;
+    }
+
     // Insertar el hábito
     const { data: nuevoHabito, error: errH } = await sb.from("habitos").insert({
       espacio_id: espacioId, nombre,
@@ -516,13 +542,17 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
       return matchTexto && matchMonto;
     });
     if (matches.length === 0) return `⚠️ No encontré una transacción que coincida con "${args.descripcion_o_categoria}"`;
-    if (matches.length > 1) {
+    if (matches.length > 1 && args.todos !== true) {
       const lista = matches.slice(0, 5).map((t: any) => `${t.fecha} · ${t.descripcion ?? t.categorias?.nombre} · $${Number(t.monto).toLocaleString("es-CO")}`).join("\n");
-      return `Hay ${matches.length} que coinciden, sé más específico (incluye fecha o monto):\n${lista}`;
+      return `Hay ${matches.length} que coinciden:\n${lista}\n\n¿Borro TODAS? Dime "sí" o sé más específico.`;
     }
-    const elegida = matches[0] as any;
-    await sb.from("transacciones").delete().eq("id", elegida.id);
-    return `🗑️ Borré: "${elegida.descripcion ?? elegida.categorias?.nombre}" del ${elegida.fecha} ($${Number(elegida.monto).toLocaleString("es-CO")})`;
+    const ids = (matches as any[]).map(m => m.id);
+    await sb.from("transacciones").delete().in("id", ids);
+    if (matches.length === 1) {
+      const e = matches[0] as any;
+      return `🗑️ Borré: "${e.descripcion ?? e.categorias?.nombre}" del ${e.fecha} ($${Number(e.monto).toLocaleString("es-CO")})`;
+    }
+    return `🗑️ Borré ${matches.length} transacciones.`;
   }
 
   if (fn === "editar_transaccion") {
@@ -572,13 +602,14 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
       return titulo.includes(buscado) || buscado.includes(titulo);
     });
     if (matches.length === 0) return `⚠️ No encontré una tarea que coincida con "${args.texto_tarea}" en ${fecha}`;
-    if (matches.length > 1) {
+    if (matches.length > 1 && args.todos !== true) {
       const lista = matches.slice(0, 5).map((t: any) => `${t.titulo}${t.hora_inicio ? ` (${t.hora_inicio.slice(0,5)})` : ""}`).join(", ");
-      return `Hay varias: ${lista}. Sé más específico.`;
+      return `Hay ${matches.length}: ${lista}. ¿Borro TODAS? Dime "sí" o sé más específico.`;
     }
-    const elegida = matches[0] as any;
-    await sb.from("tareas").delete().eq("id", elegida.id);
-    return `🗑️ Borré la tarea: "${elegida.titulo}"`;
+    const ids = (matches as any[]).map(m => m.id);
+    await sb.from("tareas").delete().in("id", ids);
+    if (matches.length === 1) return `🗑️ Borré la tarea: "${(matches[0] as any).titulo}"`;
+    return `🗑️ Borré ${matches.length} tareas.`;
   }
 
   if (fn === "editar_tarea") {
@@ -619,13 +650,19 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
       return n.includes(buscado) || buscado.includes(n);
     });
     if (matches.length === 0) return `⚠️ No encontré un hábito que coincida con "${args.texto_habito}"`;
-    if (matches.length > 1) {
+    // Si el usuario pidió 'todos', borrar todos los matches
+    if (matches.length > 1 && args.todos !== true) {
       const lista = matches.map((h: any) => h.nombre).join(", ");
-      return `Hay varios hábitos: ${lista}. Sé más específico.`;
+      return `Hay ${matches.length} hábitos: ${lista}. ¿Quieres que borre TODOS? Dime "sí, borra todos" o sé más específico.`;
     }
-    const elegido = matches[0] as any;
-    await sb.from("habitos").update({ archivado: true }).eq("id", elegido.id);
-    return `🗑️ Archivé el hábito "${elegido.nombre}". Sus tareas futuras siguen pero el hábito ya no aparece activo.`;
+    const ids = (matches as any[]).map(m => m.id);
+    await sb.from("habitos").update({ archivado: true }).in("id", ids);
+    // También borrar las tareas futuras vinculadas a esos hábitos
+    await sb.from("tareas").delete().in("habito_id", ids).gte("fecha", hoyIso());
+    if (matches.length === 1) {
+      return `🗑️ Archivé el hábito "${(matches[0] as any).nombre}" y eliminé sus tareas futuras.`;
+    }
+    return `🗑️ Archivé ${matches.length} hábitos (${matches.map((m: any) => m.nombre).join(", ")}) y eliminé sus tareas futuras.`;
   }
 
   return "";
