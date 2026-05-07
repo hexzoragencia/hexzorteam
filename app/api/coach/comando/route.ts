@@ -14,6 +14,7 @@ Hablas español colombiano. Eres directo y conciso.
 Acciones disponibles:
 - crear_transaccion: cuando el usuario menciona un gasto o ingreso ("gasté 50k en pauta")
 - marcar_habito: cuando dice que cumplió un hábito ("ya hice gym hoy", "leí 30 min")
+- crear_habito: cuando dice que quiere AGREGAR un hábito nuevo a su rutina ("agrégame el hábito de leer 30min", "quiero meditar todos los días", "ponme el hábito de gym")
 - crear_tarea: cuando agenda algo ("reunión mañana 3pm")
 - marcar_tarea_completada: cuando termina una tarea ya planeada ("ya hice X")
 - marcar_subtarea: para sub-tareas de objetivos
@@ -58,6 +59,22 @@ const tools: any[] = [
           fecha: { type: "string", description: "YYYY-MM-DD" },
         },
         required: ["nombres", "fecha"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "crear_habito",
+      description: "Crea un nuevo hábito para que el usuario lo agregue a su rutina diaria. Si el usuario menciona una hora ('a las 6am', 'por la mañana'), inclúyela. Si no, deja hora_desde vacío.",
+      parameters: {
+        type: "object",
+        properties: {
+          nombre: { type: "string", description: "Nombre del hábito (ej: 'Ejercicio', 'Leer 30 min')" },
+          hora_desde: { type: "string", description: "HH:MM (24h) cuando empieza el hábito, opcional" },
+          hora_hasta: { type: "string", description: "HH:MM (24h) cuando termina, opcional" },
+        },
+        required: ["nombre"],
       },
     },
   },
@@ -219,6 +236,52 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
     if (matched.length) partes.push(`✅ Marqué: ${matched.join(", ")}`);
     if (noMatched.length) partes.push(`⚠️ No encontré: ${noMatched.join(", ")}`);
     return partes.join(" · ") || "Sin cambios.";
+  }
+
+  if (fn === "crear_habito") {
+    const nombre = String(args.nombre ?? "").trim();
+    if (!nombre) throw new Error("Falta el nombre del hábito");
+    const horaDesde = args.hora_desde ? `${args.hora_desde}:00` : null;
+    const horaHasta = args.hora_hasta ? `${args.hora_hasta}:00` : null;
+
+    // Insertar el hábito
+    const { data: nuevoHabito, error: errH } = await sb.from("habitos").insert({
+      espacio_id: espacioId, nombre,
+      hora_desde: horaDesde, hora_hasta: horaHasta,
+      orden: 0,
+    }).select().single();
+    if (errH) throw errH;
+
+    // Si tiene hora, auto-generar tareas en planeación para los próximos 30 días
+    let tareasCreadas = 0;
+    if (horaDesde && nuevoHabito) {
+      const tareas: any[] = [];
+      const hoy = new Date(hoyIso() + "T00:00:00");
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(hoy);
+        d.setDate(d.getDate() + i);
+        const fecha = d.toISOString().slice(0, 10);
+        const duracionMin = horaHasta ? Math.max(15, Math.round(
+          (parseInt(horaHasta.slice(0,2)) * 60 + parseInt(horaHasta.slice(3,5))) -
+          (parseInt(horaDesde.slice(0,2)) * 60 + parseInt(horaDesde.slice(3,5)))
+        )) : 30;
+        tareas.push({
+          espacio_id: espacioId,
+          titulo: nombre,
+          fecha,
+          hora_inicio: horaDesde,
+          duracion_min: duracionMin,
+          tipo: "personal",
+          habito_id: nuevoHabito.id,
+        });
+      }
+      const { error: errT } = await sb.from("tareas").insert(tareas);
+      if (!errT) tareasCreadas = tareas.length;
+    }
+
+    const horaTxt = horaDesde ? ` a las ${horaDesde.slice(0,5)}` : "";
+    const tareasTxt = tareasCreadas > 0 ? ` y lo agendé en planeación por los próximos ${tareasCreadas} días` : "";
+    return `✨ Creé el hábito "${nombre}"${horaTxt}${tareasTxt}.`;
   }
 
   if (fn === "crear_tarea") {

@@ -89,14 +89,47 @@ export function HabitosClient({
   async function agregarHabito() {
     const nombre = nuevoNombre.trim();
     if (!nombre) return;
+    const horaDesde = nuevoHoraDesde ? `${nuevoHoraDesde}:00` : null;
+    const horaHasta = nuevoHoraHasta ? `${nuevoHoraHasta}:00` : null;
     const payload: any = {
       espacio_id: espacio.id, nombre, orden: habitos.length,
-      hora_desde: nuevoHoraDesde || null,
-      hora_hasta: nuevoHoraHasta || null,
+      hora_desde: horaDesde,
+      hora_hasta: horaHasta,
     };
     const { data, error } = await supabase.from("habitos").insert(payload).select().single();
     if (error) { alert(error.message); return; }
-    setHabitos([...habitos, data as Habito]);
+    const nuevo = data as Habito;
+    setHabitos([...habitos, nuevo]);
+
+    // Si tiene hora, auto-generar tareas en planeación para los próximos 30 días
+    if (horaDesde) {
+      const hoyD = new Date();
+      const tareas: any[] = [];
+      const dur = horaHasta
+        ? Math.max(15, Math.round(
+            (parseInt(horaHasta.slice(0,2)) * 60 + parseInt(horaHasta.slice(3,5))) -
+            (parseInt(horaDesde.slice(0,2)) * 60 + parseInt(horaDesde.slice(3,5)))
+          ))
+        : 30;
+      for (let i = 0; i < 30; i++) {
+        const d = new Date(hoyD);
+        d.setDate(d.getDate() + i);
+        const fmt = new Intl.DateTimeFormat("en-CA", {
+          timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit",
+        });
+        tareas.push({
+          espacio_id: espacio.id,
+          titulo: nombre,
+          fecha: fmt.format(d),
+          hora_inicio: horaDesde,
+          duracion_min: dur,
+          tipo: "personal",
+          habito_id: nuevo.id,
+        });
+      }
+      await supabase.from("tareas").insert(tareas);
+    }
+
     setNuevoNombre(""); setNuevoHoraDesde(""); setNuevoHoraHasta("");
     setShowForm(false);
     router.refresh();

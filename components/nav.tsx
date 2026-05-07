@@ -53,7 +53,7 @@ function buildNav(tipo: "empresarial" | "personal"): NavEntry[] {
     label: "Productividad",
     icon: "Rocket",
     items: [
-      { href: "planeacion", label: "Planeación", icon: "CalendarDays" },
+      { href: "planeacion", label: "Planeación diaria", icon: "CalendarDays" },
       { href: "habitos",    label: "Hábitos",    icon: "Sparkles" },
       { href: "objetivos",  label: "Objetivos",  icon: "Target" },
     ],

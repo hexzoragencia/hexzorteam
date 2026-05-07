@@ -12,8 +12,8 @@ import { TAREA_TIPOS, type Tarea, type TareaTipo, type Espacio } from "@/lib/typ
 import { diasDeSemana, fechaCorta, formatHora, hoyIso, sumarDias } from "@/lib/fechas";
 import { ChevronLeft, ChevronRight, Plus, Trash2, Pencil, Check, X, CalendarDays, Clock, CheckCircle2 } from "lucide-react";
 
-const HORA_INICIO = 6;   // 06:00
-const HORA_FIN = 22;     // 22:00 (último slot 21:30)
+const HORA_INICIO = 5;   // 05:00 AM
+const HORA_FIN = 24;     // 12:00 AM (medianoche; último slot 23:30)
 const SLOT_MIN = 30;     // duración de cada slot
 const SLOTS_POR_HORA = 60 / SLOT_MIN;
 const TOTAL_SLOTS = (HORA_FIN - HORA_INICIO) * SLOTS_POR_HORA;
@@ -39,13 +39,13 @@ type Form = {
 
 export function PlaneacionClient({
   espacio, semanaInicio, vistaInicial, initial,
-}: { espacio: Espacio; semanaInicio: string; vistaInicial: "dia" | "semana"; initial: Tarea[] }) {
+}: { espacio: Espacio; semanaInicio: string; vistaInicial: "dia" | "semana" | "mes"; initial: Tarea[] }) {
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
   const supabase = createClient();
   const [tareas, setTareas] = useState<Tarea[]>(initial);
-  const [vista, setVistaState] = useState<"dia" | "semana">(vistaInicial);
+  const [vista, setVistaState] = useState<"dia" | "semana" | "mes">(vistaInicial);
   const [diaSeleccionado, setDiaSeleccionado] = useState<string>(hoyIso());
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -58,13 +58,13 @@ export function PlaneacionClient({
     return m;
   }, [tareas]);
 
-  function navegar(nuevoLunes: string, nuevaVista?: "dia" | "semana") {
+  function navegar(nuevoLunes: string, nuevaVista?: "dia" | "semana" | "mes") {
     const params = new URLSearchParams(sp.toString());
     params.set("semana", nuevoLunes);
     if (nuevaVista) params.set("vista", nuevaVista);
     router.push(`${pathname}?${params.toString()}`);
   }
-  function setVista(v: "dia" | "semana") {
+  function setVista(v: "dia" | "semana" | "mes") {
     setVistaState(v);
     const params = new URLSearchParams(sp.toString());
     params.set("vista", v);
@@ -139,13 +139,14 @@ export function PlaneacionClient({
       {/* Header con navegación de semana */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
-          <h1 className="text-3xl font-bold flex items-center gap-2"><CalendarDays className="h-7 w-7 text-primary" /> Planeación</h1>
+          <h1 className="text-3xl font-bold flex items-center gap-2"><CalendarDays className="h-7 w-7 text-primary" /> Planeación diaria</h1>
           <p className="text-muted-foreground text-sm">Click en cualquier hora para crear un bloque. Chulea cuando termines.</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <div className="flex items-center gap-1 rounded-md border bg-card p-0.5">
             <Button variant={vista === "semana" ? "default" : "ghost"} size="sm" onClick={() => setVista("semana")} className="h-7">Semana</Button>
             <Button variant={vista === "dia" ? "default" : "ghost"} size="sm" onClick={() => setVista("dia")} className="h-7">Día</Button>
+            <Button variant={vista === "mes" ? "default" : "ghost"} size="sm" onClick={() => setVista("mes")} className="h-7">Mes</Button>
           </div>
           <Button variant="outline" size="icon" onClick={() => navegar(sumarDias(semanaInicio, -7))} className="h-9 w-9"><ChevronLeft className="h-4 w-4" /></Button>
           <Button variant="outline" size="sm" onClick={() => navegar(hoyIso())} className="h-9">Hoy</Button>
@@ -249,7 +250,7 @@ export function PlaneacionClient({
             </div>
           </CardContent>
         </Card>
-      ) : (
+      ) : vista === "dia" ? (
         // ============ VISTA DIARIA ============
         <DayView
           dias={dias}
@@ -261,6 +262,13 @@ export function PlaneacionClient({
           onEditar={abrirEditar}
           onToggle={toggleCompletada}
           onBorrar={borrar}
+        />
+      ) : (
+        // ============ VISTA MENSUAL ============
+        <MesView
+          tareas={tareas}
+          hoy={hoy}
+          onSeleccionarDia={(fecha) => { setDiaSeleccionado(fecha); setVista("dia"); }}
         />
       )}
     </div>
@@ -307,7 +315,12 @@ function DayColumn({
         return (
           <div
             key={t.id}
-            className={cn("absolute inset-x-0.5 rounded border px-1.5 py-1 text-[11px] overflow-hidden cursor-pointer group hover:shadow-md transition-shadow", tipoInfo.bg, tipoInfo.border, tipoInfo.text, t.completada && "opacity-50")}
+            className={cn(
+              "absolute inset-x-0.5 rounded border px-1.5 py-1 text-[11px] overflow-hidden cursor-pointer group hover:shadow-md transition-shadow",
+              t.completada
+                ? "!bg-success/25 !border-success !text-success"
+                : cn(tipoInfo.bg, tipoInfo.border, tipoInfo.text)
+            )}
             style={{ top: slot * SLOT_HEIGHT + 1, height: altura, minHeight: 24 }}
             onClick={() => onEditar(t)}
           >
@@ -415,7 +428,12 @@ function DayView({
             tareasDia.map(t => {
               const tipoInfo = TAREA_TIPOS.find(x => x.value === t.tipo)!;
               return (
-                <div key={t.id} className={cn("flex items-start gap-3 rounded-lg border p-3 group", tipoInfo.bg, tipoInfo.border, t.completada && "opacity-60")}>
+                <div key={t.id} className={cn(
+                  "flex items-start gap-3 rounded-lg border p-3 group",
+                  t.completada
+                    ? "!bg-success/15 !border-success/50"
+                    : cn(tipoInfo.bg, tipoInfo.border)
+                )}>
                   <button
                     onClick={() => onToggle(t)}
                     className={cn("h-5 w-5 rounded border-2 shrink-0 mt-0.5 flex items-center justify-center", t.completada ? "bg-success border-success" : "border-current bg-background/50")}
@@ -444,5 +462,117 @@ function DayView({
         </CardContent>
       </Card>
     </>
+  );
+}
+
+// ============ VISTA MENSUAL — vista calendario tipo grid ============
+function MesView({ tareas, hoy, onSeleccionarDia }: {
+  tareas: Tarea[]; hoy: string;
+  onSeleccionarDia: (fecha: string) => void;
+}) {
+  // 3 meses visibles: anterior, actual, siguiente. Default: actual.
+  const [offsetMes, setOffsetMes] = useState(0); // 0 = mes actual, -1 = anterior, etc.
+
+  const hoyD = new Date(hoy + "T00:00:00");
+  const mesBase = new Date(hoyD.getFullYear(), hoyD.getMonth() + offsetMes, 1);
+  const ano = mesBase.getFullYear();
+  const mesNum = mesBase.getMonth();
+  const primerDia = new Date(ano, mesNum, 1);
+  const ultimoDia = new Date(ano, mesNum + 1, 0);
+  // Día de semana del primer día (0=Dom, 1=Lun...). Lo ajusto para que Lun sea 0.
+  const dowPrimero = (primerDia.getDay() + 6) % 7;
+
+  // Index tareas por fecha
+  const idxFecha: Record<string, Tarea[]> = {};
+  for (const t of tareas) (idxFecha[t.fecha] ??= []).push(t);
+
+  // Construyo grid de 6x7 (algunas semanas tendrán días del mes anterior/siguiente)
+  const celdas: { fecha: string; dia: number; esDelMes: boolean }[] = [];
+  for (let i = 0; i < 42; i++) {
+    const offsetDia = i - dowPrimero;
+    const d = new Date(ano, mesNum, 1 + offsetDia);
+    celdas.push({
+      fecha: d.toISOString().slice(0, 10),
+      dia: d.getDate(),
+      esDelMes: d.getMonth() === mesNum,
+    });
+  }
+
+  const MES_LARGOS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+  const DIAS_CORTOS = ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"];
+
+  return (
+    <Card>
+      <CardContent className="p-3 sm:p-4 space-y-3">
+        {/* Header con navegación de mes */}
+        <div className="flex items-center justify-between">
+          <Button variant="outline" size="icon" onClick={() => setOffsetMes(o => o - 1)} className="h-8 w-8">
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="text-center">
+            <div className="font-semibold">{MES_LARGOS[mesNum]} {ano}</div>
+            {offsetMes !== 0 && (
+              <button onClick={() => setOffsetMes(0)} className="text-xs text-primary hover:underline">Volver al mes actual</button>
+            )}
+          </div>
+          <Button variant="outline" size="icon" onClick={() => setOffsetMes(o => o + 1)} className="h-8 w-8">
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
+
+        {/* Encabezados de días */}
+        <div className="grid grid-cols-7 gap-1 text-[10px] uppercase tracking-wide text-muted-foreground font-medium">
+          {DIAS_CORTOS.map(d => <div key={d} className="text-center py-1">{d}</div>)}
+        </div>
+
+        {/* Celdas */}
+        <div className="grid grid-cols-7 gap-1">
+          {celdas.map((c, i) => {
+            const tDia = idxFecha[c.fecha] ?? [];
+            const total = tDia.length;
+            const completas = tDia.filter(t => t.completada).length;
+            const pct = total > 0 ? completas / total : 0;
+            const todasOK = total > 0 && completas === total;
+            const esHoy = c.fecha === hoy;
+
+            return (
+              <button
+                key={i}
+                onClick={() => c.esDelMes && onSeleccionarDia(c.fecha)}
+                className={cn(
+                  "relative aspect-square rounded-md border p-1 text-left transition",
+                  !c.esDelMes && "opacity-30 cursor-default",
+                  c.esDelMes && "hover:border-primary cursor-pointer",
+                  esHoy && "border-primary border-2",
+                  todasOK && c.esDelMes && "bg-success/15 border-success",
+                  !todasOK && total > 0 && c.esDelMes && "bg-primary/5",
+                )}
+                disabled={!c.esDelMes}
+              >
+                <div className={cn("text-xs font-semibold", esHoy && "text-primary", todasOK && "text-success")}>
+                  {c.dia}
+                </div>
+                {total > 0 && c.esDelMes && (
+                  <div className="absolute bottom-1 left-1 right-1">
+                    <div className="h-1 rounded-full bg-muted overflow-hidden">
+                      <div className={cn("h-full transition-all", todasOK ? "bg-success" : "bg-primary")} style={{ width: `${pct * 100}%` }} />
+                    </div>
+                    <div className="text-[8px] text-muted-foreground tabular-nums mt-0.5">{completas}/{total}</div>
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Leyenda */}
+        <div className="flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground pt-1">
+          <span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded bg-success/30 border border-success" /> Día completado</span>
+          <span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded bg-primary/10 border border-border" /> Con tareas pendientes</span>
+          <span className="inline-flex items-center gap-1"><span className="h-3 w-3 rounded border-2 border-primary" /> Hoy</span>
+          <span className="ml-auto">Click en un día para ver detalle.</span>
+        </div>
+      </CardContent>
+    </Card>
   );
 }
