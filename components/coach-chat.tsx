@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Send, X, Loader2, Sparkles, MessageCircle } from "lucide-react";
+import { Send, X, Loader2, Sparkles, MessageCircle, Mic, Square } from "lucide-react";
 import { useFloatingCorner, cornerClasses } from "./floating-pos";
 
 interface Mensaje {
@@ -40,8 +40,12 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   const [texto, setTexto] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [grabando, setGrabando] = useState(false);
+  const [transcribiendo, setTranscribiendo] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
 
   // Hidratar historial
   useEffect(() => {
@@ -70,6 +74,69 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   useEffect(() => {
     if (open) setTimeout(() => inputRef.current?.focus(), 150);
   }, [open]);
+
+  // ========== GRABACIÓN DE AUDIO ==========
+  async function iniciarGrabacion() {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      // Preferir webm/opus que es lo que graba bien Chrome y acepta Whisper
+      let mimeType = "audio/webm;codecs=opus";
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = "audio/webm";
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = "audio/mp4";
+      const mr = new MediaRecorder(stream, { mimeType });
+      audioChunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) audioChunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        // Detener todas las tracks para liberar el micrófono
+        stream.getTracks().forEach(t => t.stop());
+        const blob = new Blob(audioChunksRef.current, { type: mimeType });
+        if (blob.size < 1000) {
+          alert("Audio muy corto. Habla por al menos 1 segundo.");
+          setTranscribiendo(false);
+          return;
+        }
+        await transcribirYEnviar(blob);
+      };
+      mr.start();
+      mediaRecorderRef.current = mr;
+      setGrabando(true);
+    } catch (e: any) {
+      alert("No pude acceder al micrófono: " + (e.message ?? "permiso denegado"));
+    }
+  }
+
+  function detenerGrabacion() {
+    if (!mediaRecorderRef.current) return;
+    setGrabando(false);
+    setTranscribiendo(true);
+    mediaRecorderRef.current.stop();
+    mediaRecorderRef.current = null;
+  }
+
+  async function transcribirYEnviar(blob: Blob) {
+    try {
+      const ext = blob.type.includes("webm") ? "webm" : blob.type.includes("mp4") ? "m4a" : "wav";
+      const file = new File([blob], `audio.${ext}`, { type: blob.type });
+      const fd = new FormData();
+      fd.append("audio", file);
+      const res = await fetch("/api/coach/transcribir", { method: "POST", body: fd });
+      const data = await res.json();
+      if (!res.ok || !data.texto) {
+        throw new Error(data.error || "no pude transcribir");
+      }
+      const textoTranscrito = String(data.texto).trim();
+      if (!textoTranscrito) {
+        alert("No entendí el audio. Intenta de nuevo o escribe.");
+        return;
+      }
+      // Enviar el mensaje transcrito como si fuera escrito
+      await enviar(textoTranscrito);
+    } catch (e: any) {
+      alert("Error transcribiendo: " + (e.message ?? "intenta de nuevo"));
+    } finally {
+      setTranscribiendo(false);
+    }
+  }
 
   async function enviar(textoForzado?: string) {
     const t = (textoForzado ?? texto).trim();
@@ -214,11 +281,26 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
           ref={inputRef}
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          placeholder="Escribe lo que quieras..."
-          disabled={enviando}
+          placeholder={grabando ? "🎙️ Grabando..." : transcribiendo ? "Transcribiendo audio..." : "Escribe o presiona el mic 🎤"}
+          disabled={enviando || grabando || transcribiendo}
           className="text-sm h-10"
         />
-        <Button type="submit" size="icon" disabled={enviando || !texto.trim()} className="h-10 w-10 shrink-0">
+        {/* Botón micrófono */}
+        <Button
+          type="button"
+          size="icon"
+          variant={grabando ? "destructive" : "outline"}
+          onClick={grabando ? detenerGrabacion : iniciarGrabacion}
+          disabled={enviando || transcribiendo}
+          className="h-10 w-10 shrink-0"
+          title={grabando ? "Detener y enviar" : "Grabar audio"}
+        >
+          {transcribiendo ? <Loader2 className="h-4 w-4 animate-spin" /> :
+           grabando ? <Square className="h-4 w-4 fill-current" /> :
+           <Mic className="h-4 w-4" />}
+        </Button>
+        {/* Botón enviar */}
+        <Button type="submit" size="icon" disabled={enviando || grabando || transcribiendo || !texto.trim()} className="h-10 w-10 shrink-0">
           {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </form>
