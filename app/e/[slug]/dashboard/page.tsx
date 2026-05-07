@@ -102,6 +102,22 @@ export default async function Dashboard({
     } catch { /* tabla aún no existe */ }
   }
 
+  // Pagos del mes — alertas de próximos y vencidos
+  type PagoMes = {
+    id: string; nombre: string; monto: number; dia_pago: number;
+    fecha_vencimiento: string; estado: "pagado" | "vencido" | "proximo" | "pendiente";
+  };
+  let pagosUrgentes: PagoMes[] = [];
+  try {
+    const { data: pm } = await supabase
+      .from("pagos_del_mes")
+      .select("id, nombre, monto, dia_pago, fecha_vencimiento, estado")
+      .eq("espacio_id", espacio.id)
+      .in("estado", ["vencido", "proximo"])
+      .order("fecha_vencimiento");
+    pagosUrgentes = (pm ?? []) as PagoMes[];
+  } catch { /* tabla aún no existe */ }
+
   // Fechas para el corte "Hoy y los últimos días" — siempre actuales, independientes del mes seleccionado.
   const hoyStr = hoyIso();
   const ayerStr = sumarDias(hoyStr, -1);
@@ -295,6 +311,11 @@ export default async function Dashboard({
       {/* Próximas clases de mentoría — solo superadmin (en ambos espacios) */}
       {esAdminUser && proximasClasesMentoria.length > 0 && (
         <ClasesMentoriaCard clases={proximasClasesMentoria} />
+      )}
+
+      {/* Pagos urgentes (vencidos o próximos a vencer) */}
+      {pagosUrgentes.length > 0 && (
+        <PagosUrgentesCard pagos={pagosUrgentes} moneda={espacio.moneda} slug={espacio.slug} />
       )}
 
       {/* Etiqueta del período actual (ayuda a entender que los KPIs son del rango seleccionado) */}
@@ -704,5 +725,53 @@ function MiniKpi({ label, value, sub, highlight }: {
       )}>{value}</div>
       {sub && <div className="text-xs text-muted-foreground mt-0.5">{sub}</div>}
     </div>
+  );
+}
+
+function PagosUrgentesCard({ pagos, moneda, slug }: {
+  pagos: { id: string; nombre: string; monto: number; dia_pago: number; fecha_vencimiento: string; estado: string }[];
+  moneda: string; slug: string;
+}) {
+  const vencidos = pagos.filter(p => p.estado === "vencido");
+  const proximos = pagos.filter(p => p.estado === "proximo");
+  const total = pagos.reduce((s, p) => s + Number(p.monto), 0);
+  const tieneVencidos = vencidos.length > 0;
+
+  return (
+    <Card className={cn(tieneVencidos ? "border-destructive/50 bg-destructive/5" : "border-warning/40 bg-warning/5")}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className={cn("flex items-center gap-2", tieneVencidos ? "text-destructive" : "text-warning")}>
+            <AlertTriangle className="h-5 w-5" />
+            {tieneVencidos ? "Pagos urgentes" : "Pagos próximos"}
+          </CardTitle>
+          <Link href={`/e/${slug}/pagos`} className={cn("text-xs hover:underline", tieneVencidos ? "text-destructive" : "text-warning")}>
+            Ver todos →
+          </Link>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Total a pagar: <span className="font-semibold text-foreground">{formatMoney(total, moneda)}</span>
+        </p>
+        <ul className="space-y-1.5">
+          {pagos.slice(0, 5).map(p => {
+            const hoy = new Date(); hoy.setHours(0,0,0,0);
+            const venc = new Date(p.fecha_vencimiento + "T00:00:00");
+            const dias = Math.round((venc.getTime() - hoy.getTime()) / 86400000);
+            const txt = dias < 0 ? `vencido hace ${Math.abs(dias)}d` : dias === 0 ? "vence HOY" : `vence en ${dias}d`;
+            return (
+              <li key={p.id} className="flex items-center justify-between text-sm py-1 border-t first:border-t-0 first:pt-0">
+                <div>
+                  <div className="font-medium">{p.nombre}</div>
+                  <div className="text-xs text-muted-foreground">{txt}</div>
+                </div>
+                <div className="font-bold tabular-nums">{formatMoney(p.monto, moneda)}</div>
+              </li>
+            );
+          })}
+        </ul>
+      </CardContent>
+    </Card>
   );
 }

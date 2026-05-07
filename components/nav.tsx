@@ -7,7 +7,7 @@ import {
   LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard,
   Calculator, Settings, LogOut, Menu, X, ChevronDown, ChevronRight, ChevronLeft,
   Building2, User, Lock, Plus, BookOpenCheck, Palette, Sparkles, Rocket, Target, CalendarDays,
-  Package, TrendingUp, Briefcase, Globe, Lightbulb, KeyRound,
+  Package, TrendingUp, Briefcase, Globe, Lightbulb, KeyRound, BellRing,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
@@ -16,7 +16,7 @@ import { cn } from "@/lib/utils";
 import type { Espacio } from "@/lib/types";
 
 const ICONS: Record<string, any> = {
-  LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard, Calculator, Settings, BookOpenCheck, Palette, Sparkles, Rocket, Target, CalendarDays, Building2, Package, TrendingUp, Briefcase, Globe, Lightbulb, KeyRound,
+  LayoutDashboard, Receipt, Wallet, Tags, PiggyBank, CreditCard, Calculator, Settings, BookOpenCheck, Palette, Sparkles, Rocket, Target, CalendarDays, Building2, Package, TrendingUp, Briefcase, Globe, Lightbulb, KeyRound, BellRing,
 };
 
 type NavItem = { href: string; label: string; icon: string };
@@ -32,6 +32,7 @@ function buildNav(tipo: "empresarial" | "personal"): NavEntry[] {
     icon: "BookOpenCheck",
     items: [
       { href: "transacciones", label: "Transacciones", icon: "Receipt" },
+      { href: "pagos",         label: "Pagos del mes", icon: "BellRing" },
       { href: "presupuesto",   label: "Presupuesto",   icon: "Wallet" },
       { href: "categorias",    label: "Categorías",    icon: "Tags" },
       { href: "fondos",        label: "Ahorros",       icon: "PiggyBank" },

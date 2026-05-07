@@ -32,6 +32,7 @@ const SYSTEM = `Eres el coach personal del usuario en su app de finanzas + produ
 - crear_habito → AGREGA un hábito nuevo a la rutina. Ej: "agrégame meditar a las 7am"
 - crear_tarea → agenda algo en la planeación diaria. Ej: "reunión mañana 3pm"
 - marcar_tarea_completada → marca como hecha tarea YA agendada. Ej: "ya hice la reunión"
+- crear_pago_programado → agrega un PAGO RECURRENTE con fecha (Netflix, internet, renta). Ej: "Netflix 36k todos los días 5"
 
 ## Borrar / editar
 - borrar_transaccion → borra un gasto/ingreso. Ej: "borra el gasto de gym de hoy"
@@ -252,6 +253,23 @@ const tools: any[] = [
           nueva_duracion_min: { type: "number", description: "Nueva duración en minutos, opcional" },
         },
         required: ["texto_busqueda"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "crear_pago_programado",
+      description: "Crea un pago recurrente con fecha (renta, internet, suscripción, etc). El sistema te avisará cuando se acerque la fecha.",
+      parameters: {
+        type: "object",
+        properties: {
+          nombre: { type: "string", description: "Ej. 'Internet', 'Netflix', 'Renta'" },
+          monto: { type: "number", description: "Monto del pago" },
+          dia_pago: { type: "integer", description: "Día del mes (1-31) en que vence" },
+          recurrencia: { type: "string", enum: ["mensual", "semanal", "anual", "unico"], description: "Default: mensual" },
+        },
+        required: ["nombre", "monto", "dia_pago"],
       },
     },
   },
@@ -639,6 +657,37 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
     if (Object.keys(upd).length === 0) return "⚠️ No me dijiste qué cambiar.";
     await sb.from("tareas").update(upd).eq("id", elegida.id);
     return `✏️ Edité "${elegida.titulo}". Cambié: ${Object.keys(upd).join(", ")}.`;
+  }
+
+  if (fn === "crear_pago_programado") {
+    const nombre = String(args.nombre ?? "").trim();
+    const monto = Number(args.monto);
+    const dia = Number(args.dia_pago);
+    if (!nombre) throw new Error("Falta el nombre");
+    if (!monto || monto <= 0) throw new Error("Monto inválido");
+    if (!dia || dia < 1 || dia > 31) throw new Error("Día inválido (1-31)");
+    const recurrencia = (args.recurrencia ?? "mensual") as string;
+
+    // Anti-duplicado: no crear si ya existe uno con el mismo nombre
+    const { data: existe } = await sb.from("pagos_programados")
+      .select("id, nombre, monto, dia_pago")
+      .eq("espacio_id", espacioId).eq("activo", true).ilike("nombre", nombre).maybeSingle();
+    if (existe) {
+      const e = existe as any;
+      return `Ya tienes un pago "${e.nombre}" de $${Number(e.monto).toLocaleString("es-CO")} el día ${e.dia_pago}. Si quieres editarlo dime "cambia el monto/día de ${e.nombre}".`;
+    }
+
+    // Buscar categoría tipo pago_programado (la primera) para asignar
+    const { data: cats } = await sb.from("categorias").select("id").eq("espacio_id", espacioId)
+      .in("tipo", ["pago_programado", "suscripcion"]).limit(1);
+    const categoriaId = (cats && cats.length > 0) ? cats[0].id : null;
+
+    const { error } = await sb.from("pagos_programados").insert({
+      espacio_id: espacioId, nombre, monto, dia_pago: dia,
+      recurrencia, categoria_id: categoriaId, activo: true,
+    });
+    if (error) throw error;
+    return `🔔 Listo, agregué "${nombre}" — $${monto.toLocaleString("es-CO")} cada mes el día ${dia}. Te aviso 2 días antes para que no se te olvide.`;
   }
 
   if (fn === "borrar_habito") {
