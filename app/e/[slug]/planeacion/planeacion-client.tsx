@@ -227,12 +227,16 @@ export function PlaneacionClient({
             </div>
             <div className="grid relative" style={{ gridTemplateColumns: "60px repeat(7, minmax(120px, 1fr))" }}>
               {/* Columna de horas */}
-              <div className="border-r">
+              <div className="border-r relative">
                 {Array.from({ length: HORA_FIN - HORA_INICIO }).map((_, i) => (
                   <div key={i} className="text-[10px] text-muted-foreground text-right pr-2" style={{ height: SLOT_HEIGHT * SLOTS_POR_HORA }}>
                     <span className="-translate-y-1.5 inline-block">{`${(HORA_INICIO + i) % 12 === 0 ? 12 : (HORA_INICIO + i) % 12}${HORA_INICIO + i >= 12 ? "pm" : "am"}`}</span>
                   </div>
                 ))}
+                {/* Label final para indicar medianoche */}
+                <div className="absolute bottom-0 right-0 text-[10px] text-muted-foreground pr-2 -translate-y-1.5">
+                  12am
+                </div>
               </div>
               {/* Columnas de días */}
               {dias.map(dia => (
