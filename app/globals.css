@@ -269,8 +269,26 @@
   .animate-coach-float  { animation: coach-float 3.5s ease-in-out infinite; }
   .animate-coach-shadow { animation: coach-shadow 3.5s ease-in-out infinite; transform-origin: center; }
 
+  /* ───── Nubes animadas debajo del coach (efecto flotando entre nubes) ───── */
+  @keyframes cloud-1 {
+    0%, 100% { transform: translateX(0)    scale(1);    opacity: 0.7; }
+    50%      { transform: translateX(-4px) scale(1.08); opacity: 0.95; }
+  }
+  @keyframes cloud-2 {
+    0%, 100% { transform: translateX(0)    scale(1);    opacity: 0.65; }
+    50%      { transform: translateX(5px)  scale(1.12); opacity: 0.85; }
+  }
+  @keyframes cloud-3 {
+    0%, 100% { transform: translateY(0)    scale(1);    opacity: 0.7; }
+    50%      { transform: translateY(-3px) scale(1.07); opacity: 0.9; }
+  }
+  .animate-cloud-1 { animation: cloud-1 4s ease-in-out infinite; }
+  .animate-cloud-2 { animation: cloud-2 5s ease-in-out infinite; }
+  .animate-cloud-3 { animation: cloud-3 6s ease-in-out infinite; }
+
   @media (prefers-reduced-motion: reduce) {
-    .animate-coach-float, .animate-coach-shadow { animation: none; }
+    .animate-coach-float, .animate-coach-shadow,
+    .animate-cloud-1, .animate-cloud-2, .animate-cloud-3 { animation: none; }
   }
 }
 

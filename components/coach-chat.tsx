@@ -32,6 +32,8 @@ const SALUDO_INICIAL: Mensaje = {
   ts: Date.now(),
 };
 
+const POS_KEY = "coach-avatar-pos";
+
 export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   const router = useRouter();
   const { corner } = useFloatingCorner();
@@ -42,10 +44,70 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   const [hydrated, setHydrated] = useState(false);
   const [grabando, setGrabando] = useState(false);
   const [transcribiendo, setTranscribiendo] = useState(false);
+  // Drag & drop libre para el muñeco cuando está cerrado
+  const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
+  const draggingRef = useRef(false);
+  const dragStartRef = useRef<{ pointerX: number; pointerY: number; posX: number; posY: number; moved: boolean } | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
+
+  // Hidratar posición guardada
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(POS_KEY);
+      if (raw) {
+        const p = JSON.parse(raw);
+        if (typeof p?.x === "number" && typeof p?.y === "number") setPos(p);
+      }
+    } catch { /* ignore */ }
+  }, []);
+
+  // Drag handlers
+  function onPointerDownAvatar(e: React.PointerEvent) {
+    draggingRef.current = true;
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    dragStartRef.current = {
+      pointerX: e.clientX,
+      pointerY: e.clientY,
+      posX: rect.left,
+      posY: rect.top,
+      moved: false,
+    };
+    (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
+  }
+  function onPointerMoveAvatar(e: React.PointerEvent) {
+    if (!draggingRef.current || !dragStartRef.current) return;
+    const dx = e.clientX - dragStartRef.current.pointerX;
+    const dy = e.clientY - dragStartRef.current.pointerY;
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) dragStartRef.current.moved = true;
+    const newX = dragStartRef.current.posX + dx;
+    const newY = dragStartRef.current.posY + dy;
+    // Limitar a bounds de la ventana
+    const w = (e.currentTarget as HTMLElement).offsetWidth;
+    const h = (e.currentTarget as HTMLElement).offsetHeight;
+    const maxX = window.innerWidth - w;
+    const maxY = window.innerHeight - h;
+    setPos({
+      x: Math.max(0, Math.min(maxX, newX)),
+      y: Math.max(0, Math.min(maxY, newY)),
+    });
+  }
+  function onPointerUpAvatar(e: React.PointerEvent) {
+    if (!draggingRef.current) return;
+    draggingRef.current = false;
+    const wasMoved = dragStartRef.current?.moved === true;
+    dragStartRef.current = null;
+    // Persistir posición
+    if (pos) {
+      try { localStorage.setItem(POS_KEY, JSON.stringify(pos)); } catch { /* ignore */ }
+    }
+    // Si NO se movió (fue solo click), abrir chat
+    if (!wasMoved) {
+      setOpen(true);
+    }
+  }
 
   // Hidratar historial
   useEffect(() => {
@@ -175,45 +237,66 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   if (!hydrated) return null;
 
   // ===== BOTÓN FLOTANTE (cerrado) =====
-  // Posición: bottom-right, arriba del Pomodoro (que está en bottom-4 right-4 con altura ~56px)
-  // Animación: floating sutil + glow.
+  // Drag & drop libre: el usuario lo arrastra a donde quiera, posición se guarda
+  // en localStorage. Si solo hace click (sin arrastrar), se abre el chat.
   if (!open) {
+    // Estilo de posición: si hay pos guardada usar absolute; si no, usar las cornerClasses default
+    const posStyle: React.CSSProperties = pos
+      ? { position: "fixed", left: pos.x, top: pos.y, zIndex: 50 }
+      : {};
+    const fallbackPosClass = pos ? "" : cn("fixed z-50", cornerClasses(corner, true));
+
     return (
-      <button
-        onClick={() => setOpen(true)}
-        className={cn("fixed z-50 group flex flex-col items-end", cornerClasses(corner, true))}
-        aria-label="Abrir chat con tu coach"
+      <div
+        onPointerDown={onPointerDownAvatar}
+        onPointerMove={onPointerMoveAvatar}
+        onPointerUp={onPointerUpAvatar}
+        onPointerCancel={onPointerUpAvatar}
+        style={{ ...posStyle, touchAction: "none", cursor: "grab" }}
+        className={cn("group flex flex-col items-end select-none", fallbackPosClass)}
+        aria-label="Coach IA — arrastra para mover, click para abrir"
       >
         {/* Burbuja "tipo nube" — siempre visible */}
-        <div className="relative mb-2 mr-4 px-3 py-1.5 rounded-2xl bg-card border-2 border-primary/40 shadow-lg text-xs font-medium max-w-[160px] text-center brand-glow">
+        <div className="relative mb-2 mr-4 px-3 py-1.5 rounded-2xl bg-card border-2 border-primary/40 shadow-lg text-xs font-medium max-w-[160px] text-center brand-glow pointer-events-none">
           <span>¡Hola! Háblame ✨</span>
-          {/* Triangulito hacia abajo (lado derecho, apuntando al avatar) */}
           <div className="absolute -bottom-1.5 right-6 w-3 h-3 rotate-45 bg-card border-r-2 border-b-2 border-primary/40" />
         </div>
 
-        {/* Avatar 3D flotante (sin recorte, fondo transparente, varias sombras para profundidad) */}
+        {/* Avatar 3D con nubes en la base */}
         <div className="relative animate-coach-float">
-          {/* Aurora detrás (resplandor radial del color del tema) */}
+          {/* Aurora/glow detrás */}
           <div className="absolute inset-0 rounded-full bg-primary/40 blur-3xl scale-75 animate-pulse pointer-events-none" />
 
-          {/* Personaje */}
-          <div className="relative h-52 w-40 hover:scale-105 transition-transform duration-300 ease-out">
+          {/* Personaje con mask gradient para que se difumine en los pies */}
+          <div
+            className="relative h-52 w-40 transition-transform duration-300 ease-out"
+            style={{
+              maskImage: "linear-gradient(to bottom, black 0%, black 65%, rgba(0,0,0,0.5) 85%, transparent 100%)",
+              WebkitMaskImage: "linear-gradient(to bottom, black 0%, black 65%, rgba(0,0,0,0.5) 85%, transparent 100%)",
+            }}
+          >
             <Image
               src="/coach-avatar.png"
               alt="Tu coach"
               fill
-              className="object-contain object-bottom"
+              className="object-contain object-bottom pointer-events-none"
               style={{
-                filter: "drop-shadow(0 4px 6px rgba(0,0,0,.18)) drop-shadow(0 12px 24px rgba(0,0,0,.25)) drop-shadow(0 0 22px hsl(var(--primary) / 0.45))",
+                filter: "drop-shadow(0 4px 6px rgba(0,0,0,.2)) drop-shadow(0 12px 24px rgba(0,0,0,.3)) drop-shadow(0 0 22px hsl(var(--primary) / 0.5))",
               }}
               priority
+              draggable={false}
             />
           </div>
 
-          {/* Sombra ovalada en el "piso" — fija (no se mueve con el flotar) */}
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-24 h-3 rounded-full bg-black/40 blur-md animate-coach-shadow" />
+          {/* Nubes animadas en la base */}
+          <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 w-44 h-12 pointer-events-none">
+            <div className="absolute bottom-3 left-2 w-20 h-10 rounded-full bg-white/40 dark:bg-white/30 blur-xl animate-cloud-1" />
+            <div className="absolute bottom-2 left-12 w-24 h-9 rounded-full bg-white/35 dark:bg-white/25 blur-xl animate-cloud-2" />
+            <div className="absolute bottom-1 right-2 w-18 h-8 rounded-full bg-white/45 dark:bg-white/30 blur-lg animate-cloud-3" />
+            <div className="absolute bottom-4 left-8 w-12 h-6 rounded-full bg-primary/30 blur-md animate-cloud-1" style={{ animationDelay: "1s" }} />
+          </div>
         </div>
-      </button>
+      </div>
     );
   }
 
