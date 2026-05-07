@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Building2, User, Lock, Save, Check, Trash2, AlertTriangle, Smile, KeyRound, Mail } from "lucide-react";
 import type { Espacio } from "@/lib/types";
+import { Configurar2FA } from "@/components/configurar-2fa";
 
 export function EspacioClient({ espacio, aliasInicial, emailActual }: { espacio: Espacio; aliasInicial: string | null; emailActual: string }) {
   const router = useRouter();
@@ -217,6 +218,9 @@ export function EspacioClient({ espacio, aliasInicial, emailActual }: { espacio:
           </div>
         </CardContent>
       </Card>
+
+      {/* 2FA — Verificación en 2 pasos */}
+      <Configurar2FA />
 
       {/* Zona de peligro — eliminar espacio */}
       <Card className="border-destructive/40">
