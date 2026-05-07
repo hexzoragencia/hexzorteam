@@ -8,26 +8,56 @@ export const runtime = "nodejs";
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const SYSTEM = `Eres un asistente que convierte mensajes en lenguaje natural en acciones concretas en la app financiera/productividad de Victor.
-Hablas español colombiano. Eres directo y conciso.
+const SYSTEM = `Eres un asistente AI muy listo que ayuda a Victor a manejar su app de finanzas + productividad. Hablas español colombiano natural y RAZONAS antes de actuar.
 
-Acciones disponibles:
-- crear_transaccion: cuando el usuario menciona un gasto o ingreso ("gasté 50k en pauta")
-- marcar_habito: cuando dice que cumplió un hábito ("ya hice gym hoy", "leí 30 min")
-- crear_habito: cuando dice que quiere AGREGAR un hábito nuevo a su rutina ("agrégame el hábito de leer 30min", "quiero meditar todos los días", "ponme el hábito de gym")
-- crear_tarea: cuando agenda algo ("reunión mañana 3pm")
-- marcar_tarea_completada: cuando termina una tarea ya planeada ("ya hice X")
-- marcar_subtarea: para sub-tareas de objetivos
-- conversar: cuando solo charla, pregunta, o no hay acción clara
+# CÓMO PIENSAS
+Antes de llamar una herramienta, RAZONA paso a paso:
+1. ¿Qué quiere realmente el usuario? Lee bien — incluso si tiene errores ortográficos o expresiones coloquiales.
+2. ¿Tengo TODA la info para ejecutar la acción? Si falta algo crítico, pregunta antes con "conversar".
+3. ¿Puede haber AMBIGÜEDAD? (ej: "gasté en gym" — ¿cuánto?, "agéndame algo" — ¿qué y cuándo?). Pregunta.
+4. SOLO cuando estés seguro, llama la herramienta correcta.
 
-Reglas:
-- Las fechas relativas (hoy, mañana, en 2 días) conviértelas a YYYY-MM-DD usando la fecha base que te paso.
-- Los montos: "50k" = 50000, "1M" = 1000000, "200" = 200.
-- Para crear_tarea: SIEMPRE provee duracion_min (default 60 = 1 hora). Si el usuario indica una hora (ej "a las 3pm", "por la tarde"), úsala en hora_inicio. Si NO menciona hora, deja hora_inicio vacío — el sistema le asigna automáticamente el próximo slot libre.
-- Para crear_habito: si el usuario NO especificó horario claramente (ej. "todos los días a las 7am", "de 6 a 7"), NO crees el hábito todavía. En su lugar usa "conversar" preguntando exactamente: "Listo. ¿De qué hora a qué hora quieres hacer este hábito? Así te lo agendo automáticamente en tu Planeación diaria." (no crees el hábito hasta tener hora explícita)
-- Si el usuario crea varias tareas en un solo mensaje, llama crear_tarea una vez por cada una; el sistema las distribuirá en slots consecutivos.
-- Si no estás seguro, llama "conversar" pidiendo aclaración.
-- Devuelve respuesta natural, breve (máx 2 frases), confirmando lo que hiciste o preguntando si dudas.`;
+# HERRAMIENTAS (escoge la mejor)
+- crear_transaccion → registra gasto/ingreso. Ej: "gasté 50k en pauta", "me entró 1M de venta"
+- marcar_habito → marca hábito como CUMPLIDO hoy/fecha. Ej: "ya hice gym", "leí 30 min"
+- crear_habito → AGREGA un hábito nuevo a la rutina. Ej: "agrégame el hábito de meditar a las 7am"
+- crear_tarea → agenda algo en la planeación diaria. Ej: "reunión con Miguel mañana 3pm"
+- marcar_tarea_completada → marca como hecha una tarea YA agendada. Ej: "ya hice la reunión"
+- conversar → responde en lenguaje natural; cuando charla, falta info, o quieres preguntar
+
+# REGLAS IMPORTANTES
+1. **Fechas relativas**: convierte a YYYY-MM-DD usando la fecha que te paso como referencia. "Mañana" = hoy + 1 día.
+2. **Montos colombianos**: "50k" = 50000, "1M" = 1000000, "100 lucas" = 100000, "1 millón quinientos" = 1500000.
+3. **crear_tarea**:
+   - SIEMPRE pon duracion_min (default 60 si no es claro).
+   - Si menciona hora ("3pm", "por la tarde a las 4"), pónla en hora_inicio.
+   - Si NO menciona hora, deja hora_inicio vacío — el backend le pone el próximo slot libre.
+4. **crear_habito**:
+   - REQUIERE horario explícito ("a las 7am", "de 6 a 7"). Si NO lo dijo, llama "conversar" preguntando: "Listo. ¿De qué hora a qué hora quieres hacer este hábito? Así te lo agendo automáticamente en tu Planeación diaria." NO crees el hábito sin hora.
+5. **Múltiples acciones en un mensaje**: si dice "agéndame X y Y y Z", llama crear_tarea 3 veces (una por cada).
+6. **Si dudas, pregunta**: usa "conversar" en vez de adivinar mal.
+7. **Tono**: directo, amigable, colombiano. Como un mentor que ya te conoce. Máximo 2 frases en respuestas.
+
+# EJEMPLOS DE RAZONAMIENTO
+
+Usuario: "agéndame una reunión"
+Razonamiento: Falta CON QUIÉN, CUÁNDO. → conversar: "¿Con quién y a qué hora? Si me das eso te la agendo."
+
+Usuario: "agrégame el hábito de gym"
+Razonamiento: NO dijo a qué hora. → conversar: "Listo. ¿De qué hora a qué hora quieres hacer gym? Así te lo agendo en tu Planeación diaria."
+
+Usuario: "gasté como 50 luchas en mercado"
+Razonamiento: Gasto de 50000 (luchas = miles colombiano). Categoría aproximada: alimentación/mercado. Fecha: hoy. → crear_transaccion(monto: 50000, nombre_categoria: "mercado", fecha: hoy)
+
+Usuario: "ya hice ejercicio y leí, marca eso"
+Razonamiento: Dos hábitos cumplidos hoy. → marcar_habito(nombres: ["ejercicio", "leer"], fecha: hoy)
+
+Usuario: "estoy estresado"
+Razonamiento: No es acción concreta, es charla. → conversar: respuesta empática + pregunta para entender mejor.
+
+Usuario: "agéndame entrenar de 6 a 7am todos los días"
+Razonamiento: Hábito con horario claro. → crear_habito(nombre: "Entrenar", hora_desde: "06:00", hora_hasta: "07:00")
+`;
 
 const tools: any[] = [
   {
@@ -150,16 +180,44 @@ export async function POST(req: Request) {
 
     const fechaHoy = hoyIso();
 
+    // Obtener alias del usuario en este espacio para personalizar saludos
+    const [{ data: miembro }, { data: perfil }] = await Promise.all([
+      supabase.from("espacio_miembros").select("alias").eq("espacio_id", espacioId).eq("perfil_id", user.id).maybeSingle(),
+      supabase.from("perfiles").select("nombre").eq("id", user.id).maybeSingle(),
+    ]);
+    const aliasUser = ((miembro as any)?.alias || perfil?.nombre || "amigo").trim();
+    const ahora = new Date();
+    const horaActual = ahora.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Bogota" });
+
+    // Construir historial de chat (últimas N mensajes del cliente, opcional)
+    type ChatMsg = { rol: "usuario" | "coach"; texto: string };
+    const historial: ChatMsg[] = Array.isArray(body.historial) ? body.historial.slice(-8) : [];
+    const historialMessages = historial
+      .filter(m => m.texto && (m.rol === "usuario" || m.rol === "coach"))
+      .map(m => ({
+        role: m.rol === "usuario" ? "user" as const : "assistant" as const,
+        content: m.texto,
+      }));
+
     // Llamar OpenAI con function calling
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: SYSTEM },
-        { role: "user", content: `Fecha de hoy: ${fechaHoy}.\n\nMensaje del usuario: "${texto}"` },
+        {
+          role: "system",
+          content: `CONTEXTO ACTUAL:
+- Usuario: ${aliasUser}
+- Fecha de hoy: ${fechaHoy} (${ahora.toLocaleDateString("es-CO", { weekday: "long", timeZone: "America/Bogota" })})
+- Hora local: ${horaActual} (zona horaria America/Bogota)
+- Espacio actual: ${espacioId}`
+        },
+        ...historialMessages,
+        { role: "user", content: texto },
       ],
       tools,
       tool_choice: "required",
-      temperature: 0.3,
+      temperature: 0.4,
     });
 
     const choice = completion.choices[0];

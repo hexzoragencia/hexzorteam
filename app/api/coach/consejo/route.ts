@@ -85,7 +85,7 @@ export async function GET(req: Request) {
 
     // Llamar OpenAI con structured output
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o-mini",
+      model: "gpt-4o",
       messages: [
         { role: "system", content: getSystemPrompt(tipoEspacio) },
         { role: "user", content: `El usuario quiere que lo llames: "${aliasUsuario}"\n\nContexto del usuario hoy:\n${ctxStr}\n\nDevuélveme JSON con: saludo (saludo del día usando el nombre "${aliasUsuario}"), frase (una frase motivacional o bíblica corta y relevante), fortalezas (1 frase corta sobre qué está haciendo bien), debilidades (1 frase sobre qué falta), sugerencia (1 acción concreta para hoy). Cada campo máximo 25 palabras. Sé específico con los números cuando aplique.` },

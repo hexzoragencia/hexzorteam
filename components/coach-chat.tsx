@@ -75,6 +75,8 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
     const t = (textoForzado ?? texto).trim();
     if (!t || enviando) return;
     const idMsg = String(Date.now());
+    // Capturar el historial ANTES de añadir el nuevo mensaje (para no incluir 'texto' duplicado)
+    const historial = mensajes.slice(-8).map(m => ({ rol: m.rol, texto: m.texto }));
     setMensajes(m => [...m, { id: idMsg + "-u", rol: "usuario", texto: t, ts: Date.now() }]);
     setTexto("");
     setEnviando(true);
@@ -82,7 +84,7 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
       const res = await fetch("/api/coach/comando", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto: t, espacio_id: espacioId }),
+        body: JSON.stringify({ texto: t, espacio_id: espacioId, historial }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
