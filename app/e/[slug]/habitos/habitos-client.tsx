@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import type { Habito, HabitoMarca, Espacio } from "@/lib/types";
 import { MonthSelector } from "@/components/dashboard/month-selector";
 import { LineHabitosAnual, BarHabitos, HeatmapAnual } from "@/components/dashboard/habitos-charts";
-import { Plus, Trash2, Pencil, Check, X, Flame, Trophy, TrendingDown, Target, CheckCheck, Sparkles } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, Flame, Trophy, TrendingDown, Target, CheckCheck, Sparkles, Calendar } from "lucide-react";
 
 const MES_NAMES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
 const DIA_LETRA = ["D","L","M","M","J","V","S"]; // domingo=0
@@ -238,37 +238,52 @@ export function HabitosClient({
 
       {/* Form rápido para agregar hábito */}
       {showForm && (
-        <Card>
-          <CardContent className="pt-6 space-y-3">
-            <Input
-              placeholder="Ej. Ejercicio matutino"
-              value={nuevoNombre}
-              onChange={(e) => setNuevoNombre(e.target.value)}
-              autoFocus
-            />
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <label className="text-[11px] text-muted-foreground">Hora desde (opcional)</label>
-                <Input
-                  type="time"
-                  value={nuevoHoraDesde}
-                  onChange={(e) => setNuevoHoraDesde(e.target.value)}
-                  placeholder="06:00"
-                />
-              </div>
-              <div>
-                <label className="text-[11px] text-muted-foreground">Hora hasta (opcional)</label>
-                <Input
-                  type="time"
-                  value={nuevoHoraHasta}
-                  onChange={(e) => setNuevoHoraHasta(e.target.value)}
-                  placeholder="08:00"
-                />
-              </div>
+        <Card className="border-primary/30">
+          <CardContent className="pt-6 space-y-4">
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">Nombre del hábito *</label>
+              <Input
+                placeholder="Ej. Ejercicio matutino"
+                value={nuevoNombre}
+                onChange={(e) => setNuevoNombre(e.target.value)}
+                autoFocus
+              />
             </div>
-            <p className="text-[11px] text-muted-foreground">El rango es opcional. Si lo defines, sabrás exactamente cuándo te toca este hábito.</p>
+
+            <div className="rounded-lg border bg-primary/5 border-primary/20 p-3 space-y-3">
+              <div className="text-xs font-medium flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-primary" />
+                ¿De qué hora a qué hora? <span className="text-muted-foreground font-normal">(esto agenda el hábito en tu Planeación diaria)</span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[11px] text-muted-foreground">Desde</label>
+                  <Input
+                    type="time"
+                    value={nuevoHoraDesde}
+                    onChange={(e) => setNuevoHoraDesde(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] text-muted-foreground">Hasta</label>
+                  <Input
+                    type="time"
+                    value={nuevoHoraHasta}
+                    onChange={(e) => setNuevoHoraHasta(e.target.value)}
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {nuevoHoraDesde
+                  ? "✅ Se agendará automáticamente en Planeación diaria por los próximos 30 días."
+                  : "Si no defines hora, solo se crea el hábito sin agendar tareas."}
+              </p>
+            </div>
+
             <div className="flex gap-2">
-              <Button onClick={agregarHabito}><Check className="h-4 w-4 mr-1" /> Crear hábito</Button>
+              <Button onClick={agregarHabito} disabled={!nuevoNombre.trim()}>
+                <Check className="h-4 w-4 mr-1" /> Crear hábito
+              </Button>
               <Button variant="outline" onClick={() => { setShowForm(false); setNuevoNombre(""); setNuevoHoraDesde(""); setNuevoHoraHasta(""); }}>Cancelar</Button>
             </div>
           </CardContent>

@@ -24,6 +24,7 @@ Reglas:
 - Las fechas relativas (hoy, mañana, en 2 días) conviértelas a YYYY-MM-DD usando la fecha base que te paso.
 - Los montos: "50k" = 50000, "1M" = 1000000, "200" = 200.
 - Para crear_tarea: SIEMPRE provee duracion_min (default 60 = 1 hora). Si el usuario indica una hora (ej "a las 3pm", "por la tarde"), úsala en hora_inicio. Si NO menciona hora, deja hora_inicio vacío — el sistema le asigna automáticamente el próximo slot libre.
+- Para crear_habito: si el usuario NO especificó horario claramente (ej. "todos los días a las 7am", "de 6 a 7"), NO crees el hábito todavía. En su lugar usa "conversar" preguntando exactamente: "Listo. ¿De qué hora a qué hora quieres hacer este hábito? Así te lo agendo automáticamente en tu Planeación diaria." (no crees el hábito hasta tener hora explícita)
 - Si el usuario crea varias tareas en un solo mensaje, llama crear_tarea una vez por cada una; el sistema las distribuirá en slots consecutivos.
 - Si no estás seguro, llama "conversar" pidiendo aclaración.
 - Devuelve respuesta natural, breve (máx 2 frases), confirmando lo que hiciste o preguntando si dudas.`;
@@ -66,15 +67,15 @@ const tools: any[] = [
     type: "function",
     function: {
       name: "crear_habito",
-      description: "Crea un nuevo hábito para que el usuario lo agregue a su rutina diaria. Si el usuario menciona una hora ('a las 6am', 'por la mañana'), inclúyela. Si no, deja hora_desde vacío.",
+      description: "Crea un nuevo hábito y AUTO-AGENDA en planeación diaria. SOLO usar cuando el usuario YA ESPECIFICÓ horario claro (ej 'a las 7am', 'de 6 a 7'). Si no hay horario, usa 'conversar' para preguntar antes de crear.",
       parameters: {
         type: "object",
         properties: {
           nombre: { type: "string", description: "Nombre del hábito (ej: 'Ejercicio', 'Leer 30 min')" },
-          hora_desde: { type: "string", description: "HH:MM (24h) cuando empieza el hábito, opcional" },
-          hora_hasta: { type: "string", description: "HH:MM (24h) cuando termina, opcional" },
+          hora_desde: { type: "string", description: "HH:MM (24h) cuando empieza el hábito. REQUERIDA antes de crear." },
+          hora_hasta: { type: "string", description: "HH:MM (24h) cuando termina, opcional. Si solo se especifica hora_desde, dura 30 min por default." },
         },
-        required: ["nombre"],
+        required: ["nombre", "hora_desde"],
       },
     },
   },
