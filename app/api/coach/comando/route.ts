@@ -25,12 +25,23 @@ const SYSTEM = `Eres el coach personal del usuario en su app de finanzas + produ
 4. Si estás seguro, ejecuta la acción correcta.
 
 # HERRAMIENTAS (escoge la mejor)
-- crear_transaccion → registra gasto/ingreso. Ej: "gasté 50k en pauta", "me entró 1M de venta"
-- marcar_habito → marca hábito como CUMPLIDO hoy/fecha. Ej: "ya hice gym", "leí 30 min"
-- crear_habito → AGREGA un hábito nuevo a la rutina. Ej: "agrégame el hábito de meditar a las 7am"
-- crear_tarea → agenda algo en la planeación diaria. Ej: "reunión con Miguel mañana 3pm"
-- marcar_tarea_completada → marca como hecha una tarea YA agendada. Ej: "ya hice la reunión"
-- conversar → responde en lenguaje natural; cuando charla, falta info, o quieres preguntar
+
+## Crear / marcar
+- crear_transaccion → registra gasto/ingreso. Ej: "gasté 50k en pauta"
+- marcar_habito → marca hábito como CUMPLIDO hoy/fecha. Ej: "ya hice gym"
+- crear_habito → AGREGA un hábito nuevo a la rutina. Ej: "agrégame meditar a las 7am"
+- crear_tarea → agenda algo en la planeación diaria. Ej: "reunión mañana 3pm"
+- marcar_tarea_completada → marca como hecha tarea YA agendada. Ej: "ya hice la reunión"
+
+## Borrar / editar
+- borrar_transaccion → borra un gasto/ingreso. Ej: "borra el gasto de gym de hoy"
+- editar_transaccion → cambia campos. Ej: "cambia el monto del gasto de gym a 60k"
+- borrar_tarea → elimina tarea agendada. Ej: "elimina la reunión de mañana"
+- editar_tarea → cambia hora/título/fecha/duración. Ej: "mueve la reunión a las 5pm"
+- borrar_habito → archiva hábito. Ej: "quita el hábito de leer"
+
+## Conversación
+- conversar → responde natural; cuando falta info, hay charla, o quieres preguntar
 
 # REGLAS IMPORTANTES
 1. **Fechas relativas**: convierte a YYYY-MM-DD usando la fecha que te paso como referencia. "Mañana" = hoy + 1 día.
@@ -64,6 +75,21 @@ Razonamiento: No es acción concreta, es charla. → conversar: respuesta empát
 
 Usuario: "agéndame entrenar de 6 a 7am todos los días"
 Razonamiento: Hábito con horario claro. → crear_habito(nombre: "Entrenar", hora_desde: "06:00", hora_hasta: "07:00")
+
+Usuario: "borra el gasto de gym de hoy"
+Razonamiento: Borrar transacción de hoy con descripción/categoría 'gym'. → borrar_transaccion(descripcion_o_categoria: "gym", fecha: hoy)
+
+Usuario: "cambia el monto a 80 mil"
+Razonamiento: AMBIGUO — no me dijo de qué transacción. → conversar: "¿De qué gasto/ingreso? Dame referencia (ej 'el de gym de hoy')."
+
+Usuario: "elimina la reunión con Miguel de mañana"
+Razonamiento: Borrar tarea con título 'reunión Miguel' del día siguiente. → borrar_tarea(texto_tarea: "reunión Miguel", fecha: mañana)
+
+Usuario: "mueve la reunión a las 5pm"
+Razonamiento: Editar hora de tarea 'reunión'. Sin fecha clara → busca en ±7 días. → editar_tarea(texto_busqueda: "reunión", nueva_hora: "17:00")
+
+Usuario: "quita el hábito de leer"
+Razonamiento: Archivar hábito 'leer'. → borrar_habito(texto_habito: "leer")
 `;
 
 const tools: any[] = [
@@ -147,6 +173,90 @@ const tools: any[] = [
           fecha: { type: "string", description: "YYYY-MM-DD donde buscar (default hoy)" },
         },
         required: ["texto_tarea"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "borrar_transaccion",
+      description: "Borra una transacción que el usuario ya registró. Identifícala por descripción, categoría, monto o fecha (combinación de varios).",
+      parameters: {
+        type: "object",
+        properties: {
+          descripcion_o_categoria: { type: "string", description: "Texto que ayude a identificar (ej 'gym', 'pauta', 'mercado')" },
+          monto: { type: "number", description: "Monto exacto, opcional para precisar" },
+          fecha: { type: "string", description: "YYYY-MM-DD, opcional. Default: últimos 7 días" },
+        },
+        required: ["descripcion_o_categoria"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "editar_transaccion",
+      description: "Edita una transacción ya registrada (cambiar monto, descripción, categoría o fecha).",
+      parameters: {
+        type: "object",
+        properties: {
+          texto_busqueda: { type: "string", description: "Cómo identificar la transacción a editar (descripción/categoría)" },
+          fecha_busqueda: { type: "string", description: "YYYY-MM-DD para filtrar, opcional" },
+          monto_busqueda: { type: "number", description: "Monto actual para precisar, opcional" },
+          nuevo_monto: { type: "number", description: "Nuevo monto, opcional" },
+          nueva_descripcion: { type: "string", description: "Nueva descripción, opcional" },
+          nueva_fecha: { type: "string", description: "Nueva YYYY-MM-DD, opcional" },
+          nueva_categoria: { type: "string", description: "Nueva categoría, opcional" },
+        },
+        required: ["texto_busqueda"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "borrar_tarea",
+      description: "Elimina una tarea ya programada en planeación. Identifícala por título/fecha.",
+      parameters: {
+        type: "object",
+        properties: {
+          texto_tarea: { type: "string", description: "Título o palabra clave" },
+          fecha: { type: "string", description: "YYYY-MM-DD para filtrar, opcional. Default: hoy" },
+        },
+        required: ["texto_tarea"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "editar_tarea",
+      description: "Edita una tarea ya programada (cambiar título, hora, fecha, duración).",
+      parameters: {
+        type: "object",
+        properties: {
+          texto_busqueda: { type: "string", description: "Texto para identificar la tarea" },
+          fecha_busqueda: { type: "string", description: "YYYY-MM-DD para filtrar, opcional. Default: ±7 días" },
+          nuevo_titulo: { type: "string", description: "Nuevo título, opcional" },
+          nueva_hora: { type: "string", description: "Nueva hora HH:MM (24h), opcional" },
+          nueva_fecha: { type: "string", description: "Nueva YYYY-MM-DD, opcional" },
+          nueva_duracion_min: { type: "number", description: "Nueva duración en minutos, opcional" },
+        },
+        required: ["texto_busqueda"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "borrar_habito",
+      description: "Archiva (borra) un hábito existente. Las marcas anteriores se conservan pero el hábito ya no aparece activo.",
+      parameters: {
+        type: "object",
+        properties: {
+          texto_habito: { type: "string", description: "Nombre o palabra clave del hábito" },
+        },
+        required: ["texto_habito"],
       },
     },
   },
@@ -388,7 +498,144 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
     return `✅ Marqué como hecha: "${t.titulo}"`;
   }
 
+  // ========== BORRAR / EDITAR ==========
+
+  if (fn === "borrar_transaccion") {
+    const buscado = String(args.descripcion_o_categoria ?? "").toLowerCase();
+    let q = sb.from("transacciones")
+      .select("id, fecha, monto, descripcion, categorias(nombre)")
+      .eq("espacio_id", espacioId);
+    if (args.fecha) q = q.eq("fecha", args.fecha);
+    else q = q.gte("fecha", sumarDias7(hoyIso(), -7));
+    const { data: txs } = await q.order("fecha", { ascending: false });
+    const matches = (txs ?? []).filter((t: any) => {
+      const desc = (t.descripcion ?? "").toLowerCase();
+      const cat = (t.categorias?.nombre ?? "").toLowerCase();
+      const matchTexto = desc.includes(buscado) || buscado.includes(desc) || cat.includes(buscado) || buscado.includes(cat);
+      const matchMonto = !args.monto || Number(t.monto) === Number(args.monto);
+      return matchTexto && matchMonto;
+    });
+    if (matches.length === 0) return `⚠️ No encontré una transacción que coincida con "${args.descripcion_o_categoria}"`;
+    if (matches.length > 1) {
+      const lista = matches.slice(0, 5).map((t: any) => `${t.fecha} · ${t.descripcion ?? t.categorias?.nombre} · $${Number(t.monto).toLocaleString("es-CO")}`).join("\n");
+      return `Hay ${matches.length} que coinciden, sé más específico (incluye fecha o monto):\n${lista}`;
+    }
+    const elegida = matches[0] as any;
+    await sb.from("transacciones").delete().eq("id", elegida.id);
+    return `🗑️ Borré: "${elegida.descripcion ?? elegida.categorias?.nombre}" del ${elegida.fecha} ($${Number(elegida.monto).toLocaleString("es-CO")})`;
+  }
+
+  if (fn === "editar_transaccion") {
+    const buscado = String(args.texto_busqueda ?? "").toLowerCase();
+    let q = sb.from("transacciones")
+      .select("id, fecha, monto, descripcion, categorias(nombre)")
+      .eq("espacio_id", espacioId);
+    if (args.fecha_busqueda) q = q.eq("fecha", args.fecha_busqueda);
+    else q = q.gte("fecha", sumarDias7(hoyIso(), -7));
+    const { data: txs } = await q.order("fecha", { ascending: false });
+    const matches = (txs ?? []).filter((t: any) => {
+      const desc = (t.descripcion ?? "").toLowerCase();
+      const cat = (t.categorias?.nombre ?? "").toLowerCase();
+      const matchTexto = desc.includes(buscado) || buscado.includes(desc) || cat.includes(buscado) || buscado.includes(cat);
+      const matchMonto = !args.monto_busqueda || Number(t.monto) === Number(args.monto_busqueda);
+      return matchTexto && matchMonto;
+    });
+    if (matches.length === 0) return `⚠️ No encontré una transacción que coincida con "${args.texto_busqueda}"`;
+    if (matches.length > 1) {
+      const lista = matches.slice(0, 5).map((t: any) => `${t.fecha} · ${t.descripcion ?? t.categorias?.nombre} · $${Number(t.monto).toLocaleString("es-CO")}`).join("\n");
+      return `Hay ${matches.length} que coinciden, sé más específico:\n${lista}`;
+    }
+    const elegida = matches[0] as any;
+    const upd: any = {};
+    if (args.nuevo_monto !== undefined && args.nuevo_monto !== null) upd.monto = Number(args.nuevo_monto);
+    if (args.nueva_descripcion) upd.descripcion = args.nueva_descripcion;
+    if (args.nueva_fecha) upd.fecha = args.nueva_fecha;
+    if (args.nueva_categoria) {
+      const { data: cats } = await sb.from("categorias").select("id, nombre").eq("espacio_id", espacioId);
+      const nuevaCat = (cats ?? []).find((c: any) => c.nombre.toLowerCase() === String(args.nueva_categoria).toLowerCase())
+        ?? (cats ?? []).find((c: any) => c.nombre.toLowerCase().includes(String(args.nueva_categoria).toLowerCase()));
+      if (nuevaCat) upd.categoria_id = nuevaCat.id;
+    }
+    if (Object.keys(upd).length === 0) return "⚠️ No me dijiste qué cambiar.";
+    await sb.from("transacciones").update(upd).eq("id", elegida.id);
+    const cambios = Object.keys(upd).map(k => k.replace("_", " ")).join(", ");
+    return `✏️ Edité la transacción "${elegida.descripcion ?? elegida.categorias?.nombre}". Cambié: ${cambios}.`;
+  }
+
+  if (fn === "borrar_tarea") {
+    const buscado = String(args.texto_tarea ?? "").toLowerCase();
+    const fecha = args.fecha ?? hoyIso();
+    const { data: tareas } = await sb.from("tareas").select("id, titulo, fecha, hora_inicio")
+      .eq("espacio_id", espacioId).eq("fecha", fecha);
+    const matches = (tareas ?? []).filter((t: any) => {
+      const titulo = (t.titulo ?? "").toLowerCase();
+      return titulo.includes(buscado) || buscado.includes(titulo);
+    });
+    if (matches.length === 0) return `⚠️ No encontré una tarea que coincida con "${args.texto_tarea}" en ${fecha}`;
+    if (matches.length > 1) {
+      const lista = matches.slice(0, 5).map((t: any) => `${t.titulo}${t.hora_inicio ? ` (${t.hora_inicio.slice(0,5)})` : ""}`).join(", ");
+      return `Hay varias: ${lista}. Sé más específico.`;
+    }
+    const elegida = matches[0] as any;
+    await sb.from("tareas").delete().eq("id", elegida.id);
+    return `🗑️ Borré la tarea: "${elegida.titulo}"`;
+  }
+
+  if (fn === "editar_tarea") {
+    const buscado = String(args.texto_busqueda ?? "").toLowerCase();
+    let q = sb.from("tareas").select("id, titulo, fecha, hora_inicio, duracion_min")
+      .eq("espacio_id", espacioId);
+    if (args.fecha_busqueda) q = q.eq("fecha", args.fecha_busqueda);
+    else {
+      q = q.gte("fecha", sumarDias7(hoyIso(), -7)).lte("fecha", sumarDias7(hoyIso(), 7));
+    }
+    const { data: tareas } = await q;
+    const matches = (tareas ?? []).filter((t: any) => {
+      const titulo = (t.titulo ?? "").toLowerCase();
+      return titulo.includes(buscado) || buscado.includes(titulo);
+    });
+    if (matches.length === 0) return `⚠️ No encontré una tarea que coincida con "${args.texto_busqueda}"`;
+    if (matches.length > 1) {
+      const lista = matches.slice(0, 5).map((t: any) => `${t.fecha} · ${t.titulo}${t.hora_inicio ? ` (${t.hora_inicio.slice(0,5)})` : ""}`).join("\n");
+      return `Hay ${matches.length} tareas, sé más específico:\n${lista}`;
+    }
+    const elegida = matches[0] as any;
+    const upd: any = {};
+    if (args.nuevo_titulo) upd.titulo = args.nuevo_titulo;
+    if (args.nueva_hora) upd.hora_inicio = `${args.nueva_hora}:00`;
+    if (args.nueva_fecha) upd.fecha = args.nueva_fecha;
+    if (args.nueva_duracion_min !== undefined && args.nueva_duracion_min !== null) upd.duracion_min = Number(args.nueva_duracion_min);
+    if (Object.keys(upd).length === 0) return "⚠️ No me dijiste qué cambiar.";
+    await sb.from("tareas").update(upd).eq("id", elegida.id);
+    return `✏️ Edité "${elegida.titulo}". Cambié: ${Object.keys(upd).join(", ")}.`;
+  }
+
+  if (fn === "borrar_habito") {
+    const buscado = String(args.texto_habito ?? "").toLowerCase();
+    const { data: habitos } = await sb.from("habitos").select("id, nombre")
+      .eq("espacio_id", espacioId).eq("archivado", false);
+    const matches = (habitos ?? []).filter((h: any) => {
+      const n = (h.nombre ?? "").toLowerCase();
+      return n.includes(buscado) || buscado.includes(n);
+    });
+    if (matches.length === 0) return `⚠️ No encontré un hábito que coincida con "${args.texto_habito}"`;
+    if (matches.length > 1) {
+      const lista = matches.map((h: any) => h.nombre).join(", ");
+      return `Hay varios hábitos: ${lista}. Sé más específico.`;
+    }
+    const elegido = matches[0] as any;
+    await sb.from("habitos").update({ archivado: true }).eq("id", elegido.id);
+    return `🗑️ Archivé el hábito "${elegido.nombre}". Sus tareas futuras siguen pero el hábito ya no aparece activo.`;
+  }
+
   return "";
+}
+
+// Helper local: suma días a un ISO date
+function sumarDias7(iso: string, dias: number): string {
+  const d = new Date(iso + "T00:00:00");
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0, 10);
 }
 
 async function getEspacioPersonal(sb: any, userId: string): Promise<string | null> {
