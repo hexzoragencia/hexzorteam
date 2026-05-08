@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { getPreferenciasUsuario } from "@/lib/preferencias-server";
+import { RegistrarSW } from "@/components/registrar-sw";
 
 export const metadata: Metadata = {
   title: "Hexzor Empresarial",
@@ -26,7 +27,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       data-font={prefs.fuente}
       data-density={prefs.densidad}
     >
-      <body>{children}</body>
+      <body>
+        <RegistrarSW />
+        {children}
+      </body>
     </html>
   );
 }
