@@ -120,8 +120,8 @@ BEGIN
     tp.perfil_id,
     'tarea_proxima'::text,
     tp.id::text,
-    '🏁 En 15 min'::text,
-    (tp.titulo || ' · ' || to_char(tp.hora_inicio, 'HH24:MI'))::text,
+    '⏳ Estás a 15 minutos de tu tarea'::text,
+    (tp.titulo || ' · ' || to_char(tp.hora_inicio, 'FMHH12:MI AM'))::text,
     '/'::text,
     hoy_bog
   FROM tareas_proximas tp
@@ -156,8 +156,8 @@ BEGIN
     ta.perfil_id,
     'tarea_inicio'::text,
     ta.id::text,
-    '⏰ Ahora'::text,
-    (ta.titulo)::text,
+    '⏰ Es hora de tu tarea'::text,
+    (ta.titulo || ' · ' || to_char(ta.hora_inicio, 'FMHH12:MI AM'))::text,
     '/'::text,
     hoy_bog
   FROM tareas_ahora ta
@@ -192,8 +192,8 @@ BEGIN
     cp.superadmin_id,
     'clase_proxima'::text,
     cp.id::text,
-    '📚 Clase en 30 min'::text,
-    (cp.estudiante || ' · ' || to_char(cp.hora, 'HH24:MI'))::text,
+    '📚 Tu clase empieza en 30 minutos'::text,
+    (cp.estudiante || ' · ' || to_char(cp.hora, 'FMHH12:MI AM'))::text,
     '/admin/mentorias'::text,
     hoy_bog
   FROM clases_proximas cp
