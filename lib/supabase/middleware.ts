@@ -27,6 +27,10 @@ export async function updateSession(request: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
 
   const { pathname } = request.nextUrl;
+  // Endpoints públicos por diseño (cron desde Supabase, sin sesión cookie — usan Bearer token propio)
+  if (pathname.startsWith("/api/cron")) {
+    return supabaseResponse;
+  }
   // Páginas accesibles sin sesión (auth flow)
   const isAuthPage =
     pathname.startsWith("/login") ||
