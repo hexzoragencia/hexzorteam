@@ -1,13 +1,22 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Send, X, Loader2, Sparkles, MessageCircle, Mic, Square } from "lucide-react";
+import { Send, X, Loader2, Sparkles, MessageCircle, Mic, Square, ImagePlus } from "lucide-react";
 import { useFloatingCorner, cornerClasses } from "./floating-pos";
+
+// Detecta la sección a partir del pathname.
+// Ej: /e/vasecom/productos → "productos"
+//     /e/personal/dashboard → "dashboard"
+function detectarSeccion(pathname: string | null): string {
+  if (!pathname) return "";
+  const m = pathname.match(/^\/e\/[^/]+\/([^/?]+)/);
+  return m?.[1] ?? "";
+}
 
 interface Mensaje {
   id: string;
@@ -36,6 +45,8 @@ const POS_KEY = "coach-avatar-pos";
 
 export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   const router = useRouter();
+  const pathname = usePathname();
+  const seccion = detectarSeccion(pathname);
   const { corner } = useFloatingCorner();
   const [open, setOpen] = useState(false);
   const [mensajes, setMensajes] = useState<Mensaje[]>([SALUDO_INICIAL]);
@@ -44,6 +55,8 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   const [hydrated, setHydrated] = useState(false);
   const [grabando, setGrabando] = useState(false);
   const [transcribiendo, setTranscribiendo] = useState(false);
+  const [imagenAdjunta, setImagenAdjunta] = useState<{ b64: string; preview: string } | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   // Drag & drop libre para el muñeco cuando está cerrado
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const draggingRef = useRef(false);
@@ -200,20 +213,48 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
     }
   }
 
+  // Convierte un File a base64 (data URL completo)
+  async function fileToDataUrl(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result));
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+  }
+
+  async function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { alert("Sube una imagen (PNG, JPG, etc)."); return; }
+    if (file.size > 8 * 1024 * 1024) { alert("Imagen muy grande (>8 MB). Comprime y reintenta."); return; }
+    const dataUrl = await fileToDataUrl(file);
+    setImagenAdjunta({ b64: dataUrl, preview: dataUrl });
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
   async function enviar(textoForzado?: string) {
     const t = (textoForzado ?? texto).trim();
-    if (!t || enviando) return;
+    if ((!t && !imagenAdjunta) || enviando) return;
     const idMsg = String(Date.now());
-    // Capturar el historial ANTES de añadir el nuevo mensaje (para no incluir 'texto' duplicado)
     const historial = mensajes.slice(-8).map(m => ({ rol: m.rol, texto: m.texto }));
-    setMensajes(m => [...m, { id: idMsg + "-u", rol: "usuario", texto: t, ts: Date.now() }]);
+    const mostrarTexto = t || (imagenAdjunta ? "📷 Captura adjunta" : "");
+    setMensajes(m => [...m, { id: idMsg + "-u", rol: "usuario", texto: mostrarTexto, ts: Date.now() }]);
     setTexto("");
+    const imgPayload = imagenAdjunta?.b64 ?? null;
+    setImagenAdjunta(null);
     setEnviando(true);
     try {
       const res = await fetch("/api/coach/comando", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ texto: t, espacio_id: espacioId, historial }),
+        body: JSON.stringify({
+          texto: t,
+          espacio_id: espacioId,
+          seccion,
+          imagen_b64: imgPayload,
+          historial,
+        }),
       });
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -355,16 +396,52 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
         </div>
       )}
 
+      {/* PREVIEW DE IMAGEN ADJUNTA */}
+      {imagenAdjunta && (
+        <div className="px-3 pb-2">
+          <div className="relative inline-block">
+            <img src={imagenAdjunta.preview} alt="Adjunto" className="h-20 rounded-lg border border-primary/40 object-cover" />
+            <button
+              type="button"
+              onClick={() => setImagenAdjunta(null)}
+              className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center shadow"
+              title="Quitar imagen"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* INPUT */}
       <form
         onSubmit={(e) => { e.preventDefault(); enviar(); }}
-        className="flex gap-2 p-3 border-t bg-card"
+        className="flex gap-1.5 p-3 border-t bg-card"
       >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          onChange={onPickImage}
+          className="hidden"
+        />
+        {/* Botón adjuntar imagen (solo si está en empresarial/productos o similar — siempre disponible) */}
+        <Button
+          type="button"
+          size="icon"
+          variant="outline"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={enviando || grabando || transcribiendo}
+          className="h-10 w-10 shrink-0"
+          title="Adjuntar captura"
+        >
+          <ImagePlus className="h-4 w-4" />
+        </Button>
         <Input
           ref={inputRef}
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          placeholder={grabando ? "🎙️ Grabando..." : transcribiendo ? "Transcribiendo audio..." : "Escribe o presiona el mic 🎤"}
+          placeholder={grabando ? "🎙️ Grabando..." : transcribiendo ? "Transcribiendo..." : imagenAdjunta ? "Describe la imagen o solo envía" : seccion === "productos" ? "Pega captura o describe producto…" : "Escribe o mic 🎤"}
           disabled={enviando || grabando || transcribiendo}
           className="text-sm h-10"
         />
@@ -383,7 +460,7 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
            <Mic className="h-4 w-4" />}
         </Button>
         {/* Botón enviar */}
-        <Button type="submit" size="icon" disabled={enviando || grabando || transcribiendo || !texto.trim()} className="h-10 w-10 shrink-0">
+        <Button type="submit" size="icon" disabled={enviando || grabando || transcribiendo || (!texto.trim() && !imagenAdjunta)} className="h-10 w-10 shrink-0">
           {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </form>

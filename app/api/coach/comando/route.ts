@@ -100,6 +100,64 @@ Usuario: "quita el hábito de leer"
 Razonamiento: Archivar hábito 'leer'. → borrar_habito(texto_habito: "leer")
 `;
 
+// ============================================================
+// Prompt adicional cuando el usuario está en la sección PRODUCTOS
+// del espacio empresarial. Cambia el "rol" del coach a especialista
+// en ecommerce / dropshipping.
+// ============================================================
+const SYSTEM_PRODUCTOS = `
+=========================================================
+MODO ACTUAL: ESPECIALISTA EN PRODUCTOS ECOMMERCE
+=========================================================
+Estás en la sección "Productos" del espacio empresarial. Cambias tu rol a
+mentor experto en dropshipping LATAM/España (Dropi, Shopify, TikTok Ads,
+Meta Ads, validación de producto, márgenes, ángulos de marketing).
+
+# QUÉ PUEDES HACER AQUÍ
+1. Crear, actualizar y mover de estado productos (tools: crear_producto, actualizar_producto, cambiar_estado_producto, listar_productos).
+2. Leer capturas: si el usuario adjunta una imagen de Dropi, Shopify, TikTok Ad Library, Meta Ad Library, Drive o proveedor, EXTRAE los datos visibles.
+3. Calcular márgenes y sugerir precios (precio x1, x2, x3) usando reglas dropshipping LATAM.
+4. Analizar si vale la pena testear: público, ángulo, precio, competencia.
+5. Generar observaciones estratégicas y registrarlas con observacion_append.
+
+# REGLAS CRÍTICAS AL LEER CAPTURAS
+1. **NO inventes datos**. Si no ves el costo del proveedor en la imagen, NO pongas un número — déjalo en blanco.
+2. Detecta qué tipo de captura es (Dropi, Shopify admin, TikTok Ad Library, Meta Ad Library, foto del producto, screenshot del proveedor).
+3. Extrae SOLO lo que VES claramente: nombre del producto, costo proveedor, precio sugerido, stock, plataforma, país.
+4. Antes de crear/actualizar, RESUME en lenguaje natural lo que extrajiste y los campos FALTANTES, y propón la acción. Usa 'conversar' para eso.
+5. Si el user dice "sí, créalo" o "dale, créalo" o similar, AHÍ SÍ llamas a crear_producto con los datos extraídos.
+6. Si el user pide directamente "crea este producto y luego me dices qué falta", puedes crear de una y mencionar qué quedó vacío.
+
+# RANGOS RAZONABLES DROPSHIPPING LATAM (para sanity-check, no para inventar)
+- Costo proveedor Dropi CO: 10k–80k COP típico
+- Precio venta unitario: costo × 2.5 a × 4 (margen 60-75%)
+- Precio 2und: ~costo × 4
+- Precio x3: ~costo × 5 (descuento por bundle)
+- Pauta: usa CPA objetivo = precio_venta × 0.25 a 0.35
+- Si el costo en la captura está fuera de rango razonable, advierte pero NO bloquees.
+
+# ESTADO POR DEFAULT
+- Productos nuevos = 'testeo'
+- Si la captura es de un producto que ya está testeando hace días (lo ves en historial de pauta), sugiere 'aprendizaje'.
+- 'Winner' = solo cuando hay ventas consistentes confirmadas. NO lo sugieras sin métricas.
+
+# TONO
+Mismo amigo colombiano cercano. Pero aquí ERES experto en ecommerce, no en finanzas personales.
+Habla en frases cortas. Da consejos accionables. Cuando el user te muestra una captura, primero
+le dices QUÉ VISTE en 2-3 frases, después le propones la acción.
+
+# EJEMPLO DE FLUJO IDEAL CON CAPTURA
+Usuario adjunta captura de Dropi con producto "Maquina ondulante"
+Tú razonas: veo en la imagen → nombre "Máquina ondulante", costo $35.900, stock 247, país Colombia (icono CO).
+Tú respondes (conversar):
+"Vale, vi en Dropi: 'Máquina ondulante' — costo 35.900 COP, stock 247, Colombia.
+Margen sugerido a 89.900 COP = 60% ($54k de utilidad/und). Plataforma queda en TT por default.
+Falta el link del landing y el de creativos. ¿Lo creo en 'testeo'?"
+
+Si user dice "sí" → llamas crear_producto con esos datos exactos.
+`;
+
+
 const tools: any[] = [
   {
     type: "function",
@@ -288,11 +346,98 @@ const tools: any[] = [
       },
     },
   },
+  // ============================================================
+  // PRODUCTOS (módulo empresarial)
+  // ============================================================
+  {
+    type: "function",
+    function: {
+      name: "listar_productos",
+      description: "Lista o busca productos del catálogo. Útil para 'qué productos tengo en testeo', 'busca el procesador', etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          estado: { type: "string", enum: ["testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Filtrar por estado, opcional" },
+          q: { type: "string", description: "Búsqueda por nombre o proveedor, opcional" },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "crear_producto",
+      description: "Crea un producto nuevo en el catálogo. Solo usar cuando tengas al MENOS el nombre. Si la info viene de una captura, llena lo que puedas extraer; deja vacío lo que no veas en la imagen — NO inventes datos.",
+      parameters: {
+        type: "object",
+        properties: {
+          nombre: { type: "string", description: "Nombre del producto" },
+          proveedor: { type: "string" },
+          pais: { type: "string", enum: ["CO", "MX", "EC", "PE", "GT", "ES", "CL", "USA", "OTRO"] },
+          costo_proveedor: { type: "number" },
+          precio_final: { type: "number", description: "Precio de venta unitario sugerido" },
+          precio_2und: { type: "number" },
+          precio_x3: { type: "number" },
+          stock: { type: "integer" },
+          link_landing: { type: "string" },
+          link_drive: { type: "string" },
+          link_creativos: { type: "string" },
+          plataforma: { type: "string", enum: ["TT", "FB", "TT+FB", "Otro"] },
+          tipo: { type: "string", enum: ["dropshipping", "importacion", "local", "otro"] },
+          estado: { type: "string", enum: ["testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Default testeo si no se especifica" },
+          observacion: { type: "string", description: "Observación estratégica, hipótesis, ángulo, público objetivo, recomendaciones — todo lo no estructurado" },
+        },
+        required: ["nombre"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "actualizar_producto",
+      description: "Actualiza campos de un producto existente. Identifícalo por texto_busqueda (nombre o proveedor). Solo pasa los campos que cambian.",
+      parameters: {
+        type: "object",
+        properties: {
+          texto_busqueda: { type: "string", description: "Nombre o palabra clave para identificar el producto" },
+          proveedor: { type: "string" },
+          pais: { type: "string", enum: ["CO", "MX", "EC", "PE", "GT", "ES", "CL", "USA", "OTRO"] },
+          costo_proveedor: { type: "number" },
+          precio_final: { type: "number" },
+          precio_2und: { type: "number" },
+          precio_x3: { type: "number" },
+          stock: { type: "integer" },
+          link_landing: { type: "string" },
+          link_drive: { type: "string" },
+          link_creativos: { type: "string" },
+          plataforma: { type: "string", enum: ["TT", "FB", "TT+FB", "Otro"] },
+          observacion_append: { type: "string", description: "Texto que se AÑADE al final de la observación existente (no sobrescribe). Útil para registrar análisis nuevos de la IA." },
+        },
+        required: ["texto_busqueda"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "cambiar_estado_producto",
+      description: "Mueve un producto entre estados (testeo → aprendizaje → validado → winner, o apaga/descarta).",
+      parameters: {
+        type: "object",
+        properties: {
+          texto_busqueda: { type: "string", description: "Nombre o palabra clave del producto" },
+          nuevo_estado: { type: "string", enum: ["testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"] },
+          motivo: { type: "string", description: "Breve razón del cambio (se añade a observación)" },
+        },
+        required: ["texto_busqueda", "nuevo_estado"],
+      },
+    },
+  },
   {
     type: "function",
     function: {
       name: "conversar",
-      description: "Cuando no hay acción concreta, solo conversa o pide aclaración.",
+      description: "Cuando no hay acción concreta, solo conversa, pide aclaración, o describe lo que ves en una imagen antes de proponer crear un producto.",
       parameters: {
         type: "object",
         properties: { respuesta: { type: "string" } },
@@ -310,7 +455,9 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const texto: string = String(body.texto ?? "").trim();
-    if (!texto) return NextResponse.json({ error: "vacío" }, { status: 400 });
+    const seccion: string = String(body.seccion ?? "").toLowerCase();
+    const imagenB64: string | null = body.imagen_b64 ?? null;
+    if (!texto && !imagenB64) return NextResponse.json({ error: "vacío" }, { status: 400 });
 
     let espacioId: string | null = body.espacio_id ?? null;
     if (espacioId) {
@@ -344,21 +491,46 @@ export async function POST(req: Request) {
         content: m.texto,
       }));
 
+    // Detectar tipo de espacio para contextualizar
+    const { data: espacioInfo } = await supabase.from("espacios").select("tipo, nombre").eq("id", espacioId).maybeSingle();
+    const tipoEspacio: string = (espacioInfo as any)?.tipo ?? "personal";
+    const nombreEspacio: string = (espacioInfo as any)?.nombre ?? "";
+
+    // Construir el mensaje system base + system especializado por sección
+    const systemMessages: any[] = [{ role: "system", content: SYSTEM }];
+    if (tipoEspacio === "empresarial" && seccion === "productos") {
+      systemMessages.push({ role: "system", content: SYSTEM_PRODUCTOS });
+    }
+    systemMessages.push({
+      role: "system",
+      content: `CONTEXTO ACTUAL:
+- Usuario: ${aliasUser}
+- Fecha de hoy: ${fechaHoy} (${ahora.toLocaleDateString("es-CO", { weekday: "long", timeZone: "America/Bogota" })})
+- Hora local: ${horaActual} (zona horaria America/Bogota)
+- Espacio actual: ${nombreEspacio} (${tipoEspacio}) [id: ${espacioId}]
+- Sección actual: ${seccion || "general"}`,
+    });
+
+    // Construir el contenido del último mensaje del usuario.
+    // Si viene imagen, usar formato multimodal de gpt-4o.
+    let userContent: any = texto || "(adjuntó una imagen)";
+    if (imagenB64) {
+      const dataUrl = imagenB64.startsWith("data:")
+        ? imagenB64
+        : `data:image/png;base64,${imagenB64}`;
+      userContent = [
+        { type: "text", text: texto || "Analiza esta captura y extrae los datos del producto." },
+        { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
+      ];
+    }
+
     // Llamar OpenAI con function calling
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
-        { role: "system", content: SYSTEM },
-        {
-          role: "system",
-          content: `CONTEXTO ACTUAL:
-- Usuario: ${aliasUser}
-- Fecha de hoy: ${fechaHoy} (${ahora.toLocaleDateString("es-CO", { weekday: "long", timeZone: "America/Bogota" })})
-- Hora local: ${horaActual} (zona horaria America/Bogota)
-- Espacio actual: ${espacioId}`
-        },
+        ...systemMessages,
         ...historialMessages,
-        { role: "user", content: texto },
+        { role: "user", content: userContent },
       ],
       tools,
       tool_choice: "required",
@@ -712,6 +884,105 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
       return `🗑️ Archivé el hábito "${(matches[0] as any).nombre}" y eliminé sus tareas futuras.`;
     }
     return `🗑️ Archivé ${matches.length} hábitos (${matches.map((m: any) => m.nombre).join(", ")}) y eliminé sus tareas futuras.`;
+  }
+
+  // ============================================================
+  // PRODUCTOS — handlers
+  // ============================================================
+  if (fn === "listar_productos") {
+    let q = sb.from("emp_productos")
+      .select("id, nombre, proveedor, estado, costo_proveedor, precio_final, stock, pais, plataforma")
+      .eq("espacio_id", espacioId)
+      .order("updated_at", { ascending: false })
+      .limit(15);
+    if (args.estado) q = q.eq("estado", args.estado);
+    if (args.q) q = q.or(`nombre.ilike.%${args.q}%,proveedor.ilike.%${args.q}%`);
+    const { data: prods } = await q;
+    if (!prods || prods.length === 0) {
+      return args.estado ? `No tienes productos en "${args.estado}".` : "No encontré productos con esa búsqueda.";
+    }
+    const lines = prods.map((p: any) => {
+      const margen = p.precio_final && p.costo_proveedor ? ` · margen ${Math.round(((p.precio_final - p.costo_proveedor) / p.precio_final) * 100)}%` : "";
+      return `• ${p.nombre}${p.proveedor ? ` (${p.proveedor})` : ""} — ${p.estado}${margen}`;
+    });
+    return `📦 Productos:\n${lines.join("\n")}`;
+  }
+
+  if (fn === "crear_producto") {
+    const nombre = String(args.nombre ?? "").trim();
+    if (!nombre) throw new Error("Falta el nombre del producto");
+    const payload: any = {
+      espacio_id: espacioId,
+      nombre,
+      proveedor: args.proveedor || null,
+      pais: args.pais || null,
+      costo_proveedor: args.costo_proveedor ?? null,
+      precio_final: args.precio_final ?? null,
+      precio_2und: args.precio_2und ?? null,
+      precio_x3: args.precio_x3 ?? null,
+      stock: args.stock ?? 0,
+      link_landing: args.link_landing || null,
+      link_drive: args.link_drive || null,
+      link_creativos: args.link_creativos || null,
+      plataforma: args.plataforma || "TT+FB",
+      tipo: args.tipo || "dropshipping",
+      estado: args.estado || "testeo",
+      observacion: args.observacion || null,
+    };
+    const { data, error } = await sb.from("emp_productos").insert(payload).select("id, nombre, estado").single();
+    if (error) throw new Error(error.message);
+    const faltantes: string[] = [];
+    if (!payload.costo_proveedor) faltantes.push("costo proveedor");
+    if (!payload.precio_final) faltantes.push("precio");
+    if (!payload.proveedor) faltantes.push("proveedor");
+    if (!payload.link_landing) faltantes.push("landing");
+    const faltMsg = faltantes.length ? ` ⚠️ Faltan: ${faltantes.join(", ")}.` : "";
+    return `✅ Creé "${data.nombre}" en estado "${data.estado}".${faltMsg}`;
+  }
+
+  if (fn === "actualizar_producto") {
+    const q = String(args.texto_busqueda ?? "").trim().toLowerCase();
+    if (!q) throw new Error("Falta texto_busqueda");
+    const { data: matches } = await sb.from("emp_productos")
+      .select("id, nombre, observacion").eq("espacio_id", espacioId).ilike("nombre", `%${q}%`).limit(5);
+    if (!matches || matches.length === 0) return `No encontré ningún producto con "${args.texto_busqueda}".`;
+    if (matches.length > 1) {
+      return `Hay ${matches.length} productos con ese nombre: ${matches.map((m: any) => `"${m.nombre}"`).join(", ")}. Sé más específico.`;
+    }
+    const prod = matches[0] as any;
+    const updates: any = {};
+    const camposSimples = ["proveedor", "pais", "costo_proveedor", "precio_final", "precio_2und", "precio_x3", "stock", "link_landing", "link_drive", "link_creativos", "plataforma"];
+    for (const c of camposSimples) if (args[c] !== undefined && args[c] !== null) updates[c] = args[c];
+    if (args.observacion_append) {
+      const prev = (prod.observacion ?? "").trim();
+      updates.observacion = prev ? `${prev}\n\n— ${args.observacion_append}` : args.observacion_append;
+    }
+    if (Object.keys(updates).length === 0) return "No me diste qué campos cambiar.";
+    const { error } = await sb.from("emp_productos").update(updates).eq("id", prod.id);
+    if (error) throw new Error(error.message);
+    const cambios = Object.keys(updates).join(", ");
+    return `✏️ Actualicé "${prod.nombre}" (${cambios}).`;
+  }
+
+  if (fn === "cambiar_estado_producto") {
+    const q = String(args.texto_busqueda ?? "").trim().toLowerCase();
+    if (!q) throw new Error("Falta texto_busqueda");
+    const { data: matches } = await sb.from("emp_productos")
+      .select("id, nombre, estado, observacion").eq("espacio_id", espacioId).ilike("nombre", `%${q}%`).limit(5);
+    if (!matches || matches.length === 0) return `No encontré producto con "${args.texto_busqueda}".`;
+    if (matches.length > 1) {
+      return `Hay ${matches.length} productos con ese nombre: ${matches.map((m: any) => `"${m.nombre}"`).join(", ")}. Sé más específico.`;
+    }
+    const prod = matches[0] as any;
+    const updates: any = { estado: args.nuevo_estado };
+    if (args.motivo) {
+      const prev = (prod.observacion ?? "").trim();
+      const linea = `[${hoyIso()}] ${prod.estado} → ${args.nuevo_estado}: ${args.motivo}`;
+      updates.observacion = prev ? `${prev}\n${linea}` : linea;
+    }
+    const { error } = await sb.from("emp_productos").update(updates).eq("id", prod.id);
+    if (error) throw new Error(error.message);
+    return `🔄 Moví "${prod.nombre}" de ${prod.estado} → ${args.nuevo_estado}.`;
   }
 
   return "";
