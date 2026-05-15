@@ -542,6 +542,72 @@ const tools: any[] = [
       },
     },
   },
+  // ============================================================
+  // TAREAS EMPRESARIALES (módulo del equipo)
+  // ============================================================
+  {
+    type: "function",
+    function: {
+      name: "crear_tarea_emp",
+      description: "Crea una tarea pendiente del equipo empresarial (planificación del negocio). Diferente de crear_tarea (que es para planeación personal). Úsala cuando el usuario dice 'agrega una tarea a la empresa', 'apunta como pendiente', 'falta hacer X', etc.",
+      parameters: {
+        type: "object",
+        properties: {
+          titulo: { type: "string", description: "Qué hay que hacer" },
+          descripcion: { type: "string", description: "Detalles, pasos, links" },
+          prioridad: { type: "string", enum: ["baja", "media", "alta", "urgente"], description: "Default media" },
+          asignado: { type: "string", description: "Nombre de la persona responsable (texto libre)" },
+          fecha_limite: { type: "string", description: "YYYY-MM-DD opcional" },
+          producto_nombre: { type: "string", description: "Si la tarea es sobre un producto específico, su nombre o palabra clave" },
+          estado: { type: "string", enum: ["pendiente", "en_progreso", "hecha"], description: "Default pendiente" },
+        },
+        required: ["titulo"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "completar_tarea_emp",
+      description: "Marca una tarea del equipo como HECHA. Identifícala por texto del título.",
+      parameters: {
+        type: "object",
+        properties: {
+          texto_tarea: { type: "string", description: "Palabra clave del título" },
+        },
+        required: ["texto_tarea"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "listar_tareas_emp",
+      description: "Lista tareas pendientes/en progreso/hechas del equipo. Útil para 'qué tareas tengo', 'qué falta hacer', 'qué le toca a Miguel'.",
+      parameters: {
+        type: "object",
+        properties: {
+          estado: { type: "string", enum: ["pendiente", "en_progreso", "hecha"] },
+          asignado: { type: "string", description: "Filtrar por nombre del responsable" },
+          prioridad: { type: "string", enum: ["baja", "media", "alta", "urgente"] },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "borrar_tarea_emp",
+      description: "Elimina una tarea del equipo. Identifícala por texto del título.",
+      parameters: {
+        type: "object",
+        properties: {
+          texto_tarea: { type: "string" },
+        },
+        required: ["texto_tarea"],
+      },
+    },
+  },
   {
     type: "function",
     function: {
@@ -1103,6 +1169,96 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
     const { error } = await sb.from("emp_productos").update(updates).eq("id", prod.id);
     if (error) throw new Error(error.message);
     return `🔄 Moví "${prod.nombre}" de ${prod.estado} → ${args.nuevo_estado}.`;
+  }
+
+  // ============================================================
+  // TAREAS EMPRESARIALES — handlers
+  // ============================================================
+  if (fn === "crear_tarea_emp") {
+    const titulo = String(args.titulo ?? "").trim();
+    if (!titulo) throw new Error("Falta el título de la tarea");
+    let producto_id: string | null = null;
+    if (args.producto_nombre) {
+      const q = String(args.producto_nombre).trim().toLowerCase();
+      const { data: prods } = await sb.from("emp_productos")
+        .select("id, nombre").eq("espacio_id", espacioId).ilike("nombre", `%${q}%`).limit(1);
+      if (prods?.[0]) producto_id = prods[0].id;
+    }
+    const payload: any = {
+      espacio_id: espacioId,
+      titulo,
+      descripcion: args.descripcion || null,
+      estado: args.estado || "pendiente",
+      prioridad: args.prioridad || "media",
+      asignado: args.asignado || null,
+      fecha_limite: args.fecha_limite || null,
+      producto_id,
+      completada_at: args.estado === "hecha" ? new Date().toISOString() : null,
+    };
+    const { data, error } = await sb.from("emp_tareas").insert(payload).select("titulo, prioridad").single();
+    if (error) throw new Error(error.message);
+    const extras: string[] = [];
+    if (args.asignado) extras.push(`asignada a ${args.asignado}`);
+    if (args.fecha_limite) extras.push(`fecha ${args.fecha_limite}`);
+    if (data.prioridad === "urgente" || data.prioridad === "alta") extras.push(`prioridad ${data.prioridad}`);
+    return `✅ Tarea creada: "${data.titulo}"${extras.length ? ` (${extras.join(", ")})` : ""}.`;
+  }
+
+  if (fn === "completar_tarea_emp") {
+    const q = String(args.texto_tarea ?? "").trim().toLowerCase();
+    if (!q) throw new Error("Falta texto_tarea");
+    const { data: matches } = await sb.from("emp_tareas")
+      .select("id, titulo, estado").eq("espacio_id", espacioId).ilike("titulo", `%${q}%`).neq("estado", "hecha").limit(5);
+    if (!matches || matches.length === 0) return `No encontré tarea pendiente con "${args.texto_tarea}".`;
+    if (matches.length > 1) {
+      return `Hay ${matches.length} tareas con ese texto: ${matches.map((m: any) => `"${m.titulo}"`).join(", ")}. Sé más específico.`;
+    }
+    const t = matches[0] as any;
+    const { error } = await sb.from("emp_tareas")
+      .update({ estado: "hecha", completada_at: new Date().toISOString() }).eq("id", t.id);
+    if (error) throw new Error(error.message);
+    return `✅ Marqué como hecha: "${t.titulo}".`;
+  }
+
+  if (fn === "listar_tareas_emp") {
+    let qb = sb.from("emp_tareas")
+      .select("titulo, estado, prioridad, asignado, fecha_limite")
+      .eq("espacio_id", espacioId)
+      .order("fecha_limite", { ascending: true, nullsFirst: false })
+      .order("created_at", { ascending: false })
+      .limit(20);
+    if (args.estado) qb = qb.eq("estado", args.estado);
+    if (args.prioridad) qb = qb.eq("prioridad", args.prioridad);
+    if (args.asignado) qb = qb.ilike("asignado", `%${args.asignado}%`);
+    const { data: ts } = await qb;
+    if (!ts || ts.length === 0) {
+      return args.estado === "hecha"
+        ? "No hay tareas hechas todavía."
+        : "¡Cero tareas pendientes! 🎉";
+    }
+    const lines = ts.map((t: any) => {
+      const pr = t.prioridad === "urgente" ? "🔥 " : t.prioridad === "alta" ? "⚠️ " : "";
+      const asig = t.asignado ? ` (${t.asignado})` : "";
+      const fl = t.fecha_limite ? ` · ${t.fecha_limite}` : "";
+      const est = t.estado === "hecha" ? "✅" : t.estado === "en_progreso" ? "🟡" : "⚪";
+      return `${est} ${pr}${t.titulo}${asig}${fl}`;
+    });
+    return `📋 Tareas:\n${lines.join("\n")}`;
+  }
+
+  if (fn === "borrar_tarea_emp") {
+    const q = String(args.texto_tarea ?? "").trim().toLowerCase();
+    if (!q) throw new Error("Falta texto_tarea");
+    const { data: matches } = await sb.from("emp_tareas")
+      .select("id, titulo").eq("espacio_id", espacioId).ilike("titulo", `%${q}%`).limit(5);
+    if (!matches || matches.length === 0) return `No encontré tarea con "${args.texto_tarea}".`;
+    if (matches.length > 1) {
+      return `Hay ${matches.length} tareas con ese texto: ${matches.map((m: any) => `"${m.titulo}"`).join(", ")}. Sé más específico.`;
+    }
+    const t = matches[0] as any;
+    const { error } = await sb.from("emp_tareas").delete().eq("id", t.id);
+    if (error) throw new Error(error.message);
+    return `🗑️ Borré la tarea "${t.titulo}".`;
   }
 
   return "";
