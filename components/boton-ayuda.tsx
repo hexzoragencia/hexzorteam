@@ -3,12 +3,14 @@
 import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import { HelpCircle, X } from "lucide-react";
-import { TourGuiado, tourYaVisto, resetearTour, type Step } from "./tour-guiado";
+import { TourGuiado, tourYaVisto, resetearTour } from "./tour-guiado";
 
+// El typing de react-joyride v3 está roto (Step no expone disableBeacon
+// aunque sí es válido en runtime), por eso usamos any[] aquí.
 type DefinicionTour = {
   id: string;
   nombre: string;
-  steps: Step[];
+  steps: any[];
 };
 
 const TOURS: Record<string, DefinicionTour> = {

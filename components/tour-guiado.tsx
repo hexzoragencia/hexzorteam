@@ -1,9 +1,17 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import type { Step, CallBackProps } from "react-joyride";
+import type { Step } from "react-joyride";
 
-const Joyride = dynamic(() => import("react-joyride"), { ssr: false });
+// react-joyride v3 exporta el componente como NAMED export `Joyride` (no default).
+// Sin el `.then(m => m.Joyride)` el import dinámico resuelve al Módulo completo
+// → React error #306 ("[object Module]") y la página entera crashea.
+const Joyride = dynamic(
+  () => import("react-joyride").then((m) => m.Joyride),
+  { ssr: false }
+) as any;
+
+type CallBackProps = { status: string; type: string };
 
 export type { Step };
 
