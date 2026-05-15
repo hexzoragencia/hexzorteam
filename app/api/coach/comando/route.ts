@@ -374,17 +374,20 @@ const tools: any[] = [
           nombre: { type: "string", description: "Nombre del producto" },
           proveedor: { type: "string" },
           pais: { type: "string", enum: ["CO", "MX", "EC", "PE", "GT", "ES", "CL", "USA", "OTRO"] },
+          responsable: { type: "string", description: "Nombre de la persona encargada (texto libre)" },
           costo_proveedor: { type: "number" },
           precio_final: { type: "number", description: "Precio de venta unitario sugerido" },
           precio_2und: { type: "number" },
           precio_x3: { type: "number" },
           stock: { type: "integer" },
           link_landing: { type: "string" },
-          link_drive: { type: "string" },
+          link_drive: { type: "string", description: "Carpeta de Drive con assets" },
           link_creativos: { type: "string" },
           plataforma: { type: "string", enum: ["TT", "FB", "TT+FB", "Otro"] },
           tipo: { type: "string", enum: ["dropshipping", "importacion", "local", "otro"] },
-          estado: { type: "string", enum: ["nuevo", "testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Default testeo si no se especifica" },
+          estado: { type: "string", enum: ["nuevo", "testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Default 'nuevo' si no se especifica" },
+          fecha_activacion_tt: { type: "string", description: "YYYY-MM-DD si ya está activo en TikTok" },
+          fecha_activacion_fb: { type: "string", description: "YYYY-MM-DD si ya está activo en Facebook" },
           observacion: { type: "string", description: "Observación estratégica, hipótesis, ángulo, público objetivo, recomendaciones — todo lo no estructurado" },
         },
         required: ["nombre"],
@@ -395,23 +398,27 @@ const tools: any[] = [
     type: "function",
     function: {
       name: "actualizar_producto",
-      description: "Actualiza campos de un producto existente. Identifícalo por texto_busqueda (nombre o proveedor). Solo pasa los campos que cambian.",
+      description: "Actualiza campos de un producto existente. Identifícalo por texto_busqueda (nombre o proveedor). Solo pasa los campos que cambian. Puedes actualizar: proveedor, precio, costo, stock, links, plataforma, responsable (texto libre), fechas de activación, y observación.",
       parameters: {
         type: "object",
         properties: {
           texto_busqueda: { type: "string", description: "Nombre o palabra clave para identificar el producto" },
           proveedor: { type: "string" },
           pais: { type: "string", enum: ["CO", "MX", "EC", "PE", "GT", "ES", "CL", "USA", "OTRO"] },
+          responsable: { type: "string", description: "Nombre de la persona encargada (texto libre — Valentina, Sebas, etc.)" },
           costo_proveedor: { type: "number" },
           precio_final: { type: "number" },
           precio_2und: { type: "number" },
           precio_x3: { type: "number" },
           stock: { type: "integer" },
           link_landing: { type: "string" },
-          link_drive: { type: "string" },
+          link_drive: { type: "string", description: "Carpeta de Drive con info y assets del producto" },
           link_creativos: { type: "string" },
           plataforma: { type: "string", enum: ["TT", "FB", "TT+FB", "Otro"] },
-          observacion_append: { type: "string", description: "Texto que se AÑADE al final de la observación existente (no sobrescribe). Útil para registrar análisis nuevos de la IA." },
+          fecha_activacion_tt: { type: "string", description: "Fecha YYYY-MM-DD en que se activó la pauta en TikTok" },
+          fecha_activacion_fb: { type: "string", description: "Fecha YYYY-MM-DD en que se activó la pauta en Facebook" },
+          observacion: { type: "string", description: "Texto que REEMPLAZA la observación existente. Úsalo cuando el user dice 'cambia la observación a X' o 'la nota ahora es Y'." },
+          observacion_append: { type: "string", description: "Texto que se AÑADE al final de la observación. Úsalo cuando el user dice 'agrégale a las notas X' o cuando registres análisis nuevos." },
         },
         required: ["texto_busqueda"],
       },
@@ -916,6 +923,7 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
       nombre,
       proveedor: args.proveedor || null,
       pais: args.pais || null,
+      responsable: args.responsable || null,
       costo_proveedor: args.costo_proveedor ?? null,
       precio_final: args.precio_final ?? null,
       precio_2und: args.precio_2und ?? null,
@@ -926,7 +934,9 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
       link_creativos: args.link_creativos || null,
       plataforma: args.plataforma || "TT+FB",
       tipo: args.tipo || "dropshipping",
-      estado: args.estado || "testeo",
+      estado: args.estado || "nuevo",
+      fecha_activacion_tt: args.fecha_activacion_tt || null,
+      fecha_activacion_fb: args.fecha_activacion_fb || null,
       observacion: args.observacion || null,
     };
     const { data, error } = await sb.from("emp_productos").insert(payload).select("id, nombre, estado").single();
@@ -951,9 +961,17 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
     }
     const prod = matches[0] as any;
     const updates: any = {};
-    const camposSimples = ["proveedor", "pais", "costo_proveedor", "precio_final", "precio_2und", "precio_x3", "stock", "link_landing", "link_drive", "link_creativos", "plataforma"];
+    const camposSimples = [
+      "proveedor", "pais", "responsable",
+      "costo_proveedor", "precio_final", "precio_2und", "precio_x3", "stock",
+      "link_landing", "link_drive", "link_creativos",
+      "plataforma", "fecha_activacion_tt", "fecha_activacion_fb",
+    ];
     for (const c of camposSimples) if (args[c] !== undefined && args[c] !== null) updates[c] = args[c];
-    if (args.observacion_append) {
+    // observacion (reemplazar) tiene prioridad sobre observacion_append
+    if (args.observacion !== undefined && args.observacion !== null) {
+      updates.observacion = args.observacion;
+    } else if (args.observacion_append) {
       const prev = (prod.observacion ?? "").trim();
       updates.observacion = prev ? `${prev}\n\n— ${args.observacion_append}` : args.observacion_append;
     }

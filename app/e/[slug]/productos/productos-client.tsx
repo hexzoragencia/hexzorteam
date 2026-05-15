@@ -17,7 +17,7 @@ import { cn, formatMoney } from "@/lib/utils";
 
 type Producto = {
   id: string; espacio_id: string; nombre: string; proveedor: string | null;
-  pais: string | null; responsable_id: string | null;
+  pais: string | null; responsable: string | null;
   costo_proveedor: number | null; precio_final: number | null;
   precio_2und: number | null; precio_x3: number | null; stock: number | null;
   link_landing: string | null; link_drive: string | null; link_creativos: string | null;
@@ -131,7 +131,7 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
     const payload: any = {
       espacio_id: espacioId,
       nombre, proveedor: form.proveedor || null, pais: form.pais || null,
-      responsable_id: form.responsable_id || null,
+      responsable: form.responsable?.trim() || null,
       costo_proveedor: form.costo_proveedor || null,
       precio_final: form.precio_final || null,
       precio_2und: form.precio_2und || null,
@@ -178,10 +178,8 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
     router.refresh();
   }
 
-  const responsableNombre = (id: string | null) => {
-    if (!id) return null;
-    return miembros.find(m => m.id === id)?.nombre ?? null;
-  };
+  // El responsable ahora es texto libre — solo lo pasamos tal cual.
+  const responsableNombre = (texto: string | null) => texto;
 
   return (
     <div className="space-y-6" onClick={() => setMenuAbierto(null)}>
@@ -352,7 +350,7 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
               key={p.id}
               p={p}
               moneda={moneda}
-              responsable={responsableNombre(p.responsable_id)}
+              responsable={responsableNombre(p.responsable)}
               menuAbierto={menuAbierto === p.id}
               onAbrirMenu={(open) => setMenuAbierto(open ? p.id : null)}
               onEditar={() => abrirEditar(p)}
@@ -447,7 +445,7 @@ function CarruselProductos({ productos, moneda, menuAbiertoId, onAbrirMenu, resp
             <ProductoCard
               p={p}
               moneda={moneda}
-              responsable={responsableNombre(p.responsable_id)}
+              responsable={responsableNombre(p.responsable)}
               menuAbierto={menuAbiertoId === p.id}
               onAbrirMenu={(open) => onAbrirMenu(open ? p.id : null)}
               onEditar={() => onEditar(p)}
@@ -514,7 +512,7 @@ function ProductoCard({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
               <MoreHorizontal className="h-4 w-4" />
             </button>
             {menuAbierto && (
-              <div className="absolute right-0 top-8 z-20 w-48 rounded-lg border border-border bg-card shadow-xl overflow-hidden">
+              <div className="absolute right-0 top-8 z-30 w-48 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card shadow-xl overflow-hidden">
                 <div className="px-3 py-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground border-b border-border/50">
                   Cambiar estado a…
                 </div>
@@ -636,7 +634,7 @@ function ProductoFila({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
       {/* Banda lateral izquierda con color del estado */}
       <div className={cn("w-1 shrink-0", e.bar)}></div>
 
-      <div className="flex-1 min-w-0 p-3.5 flex flex-col lg:flex-row lg:items-center gap-3">
+      <div className="flex-1 min-w-0 p-3.5 flex flex-col lg:flex-row lg:items-center gap-3 overflow-hidden">
 
         {/* Nombre + estado */}
         <div className="min-w-0 lg:basis-[22%] lg:max-w-[22%]">
@@ -735,7 +733,7 @@ function ProductoFila({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
               <MoreHorizontal className="h-4 w-4" />
             </button>
             {menuAbierto && (
-              <div className="absolute right-0 top-9 z-20 w-48 rounded-lg border border-border bg-card shadow-xl overflow-hidden">
+              <div className="absolute right-0 top-9 z-30 w-48 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card shadow-xl overflow-hidden">
                 <div className="px-3 py-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground border-b border-border/50">
                   Cambiar estado a…
                 </div>
@@ -847,11 +845,16 @@ function FormularioProducto({ form, setForm, editing, saving, moneda, miembros, 
               />
             </Campo>
             <Campo label="Responsable">
-              <Select
-                value={form.responsable_id ?? ""}
-                onChange={(v) => setForm({ ...form, responsable_id: v || null })}
-                options={[{ value: "", label: "— Sin asignar —" }, ...miembros.map(m => ({ value: m.id, label: m.nombre }))]}
+              <Input
+                list="hexzor-miembros-sugeridos"
+                value={form.responsable ?? ""}
+                onChange={(e) => setForm({ ...form, responsable: e.target.value })}
+                placeholder="Escribe un nombre (ej: Valentina, Sebas…)"
+                className="h-10"
               />
+              <datalist id="hexzor-miembros-sugeridos">
+                {miembros.map(m => <option key={m.id} value={m.nombre} />)}
+              </datalist>
             </Campo>
             <Campo label="Plataforma">
               <Select
