@@ -13,7 +13,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { MoneyInput } from "@/components/ui/money-input";
 import { formatMoney, formatDateLong, relativeDate } from "@/lib/utils";
 import { CATEGORIA_TIPOS, type Categoria, type CategoriaTipo } from "@/lib/types";
-import { Trash2 } from "lucide-react";
+import { Trash2, TrendingUp, TrendingDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type TxRow = {
   id: string; fecha: string; monto: number; descripcion: string | null;
@@ -33,7 +34,10 @@ export function TransaccionesClient({
   const router = useRouter();
   const supabase = createClient();
   const [txs, setTxs] = useState<TxRow[]>(initialTxs);
-  const [categoriaId, setCategoriaId] = useState<string>(categorias[0]?.id ?? "");
+  // Tipo del movimiento: ingreso (entra plata) o gasto (sale plata)
+  const [tipoMov, setTipoMov] = useState<"ingreso" | "gasto">("gasto");
+  // Categoría opcional — si vacía, se asigna "Otros ingresos" / "Otros gastos" automáticamente
+  const [categoriaId, setCategoriaId] = useState<string>("");
   const [monto, setMonto] = useState<number | "">("");
   const [descripcion, setDescripcion] = useState("");
   const [fecha, setFecha] = useState(new Date().toISOString().split("T")[0]);
@@ -41,17 +45,30 @@ export function TransaccionesClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const catActual = categorias.find((c) => c.id === categoriaId);
+  // Categorías filtradas según el tipo de movimiento elegido
+  const catsParaTipo = useMemo(() => {
+    if (tipoMov === "ingreso") return categorias.filter((c) => c.tipo === "ingreso");
+    // En "gasto" se aceptan los 4 tipos de salida (gasto_mensual, suscripcion, pago_programado, deuda)
+    const tiposGasto = new Set(["gasto_mensual", "suscripcion", "pago_programado", "deuda"]);
+    return categorias.filter((c) => tiposGasto.has(c.tipo));
+  }, [categorias, tipoMov]);
 
-  // Agrupa categorías por tipo (para el select)
+  // Agrupar para el select cuando es gasto (varios tipos)
   const catsAgrupadas = useMemo(() => {
     const groups: Record<string, Categoria[]> = {};
-    for (const c of categorias) {
+    for (const c of catsParaTipo) {
       if (!groups[c.tipo]) groups[c.tipo] = [];
       groups[c.tipo].push(c);
     }
     return groups;
-  }, [categorias]);
+  }, [catsParaTipo]);
+
+  // Reset de categoría cuando cambia el tipo
+  function cambiarTipo(t: "ingreso" | "gasto") {
+    setTipoMov(t);
+    setCategoriaId("");
+    setError(null);
+  }
 
   const txsFiltradas = useMemo(() => {
     if (filtroTipo === "todos") return txs;
@@ -60,20 +77,36 @@ export function TransaccionesClient({
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!categoriaId) { setError("Selecciona una categoría primero"); return; }
     if (monto === "" || monto <= 0) { setError("Ingresa un monto válido"); return; }
     setError(null); setLoading(true);
 
+    let catId = categoriaId;
+
+    // Si no eligió categoría, obtener/crear "Otros ingresos" o "Otros gastos" automáticamente
+    if (!catId) {
+      const tipoFallback = tipoMov === "ingreso" ? "ingreso" : "gasto_mensual";
+      const { data: defaultCat, error: rpcError } = await supabase.rpc(
+        "get_or_create_categoria_otros",
+        { p_espacio_id: espacioId, p_tipo: tipoFallback }
+      );
+      if (rpcError || !defaultCat) {
+        setLoading(false);
+        setError(rpcError?.message ?? "No se pudo crear la categoría por defecto");
+        return;
+      }
+      catId = defaultCat as string;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     const { data, error } = await supabase.from("transacciones").insert({
-      espacio_id: espacioId, categoria_id: categoriaId,
+      espacio_id: espacioId, categoria_id: catId,
       fecha, monto, descripcion: descripcion || null, responsable_id: user?.id,
     }).select("id,fecha,monto,descripcion,categoria_id,categorias(nombre,tipo),perfiles(nombre)").single();
 
     setLoading(false);
     if (error) { setError(error.message); return; }
     setTxs([data as unknown as TxRow, ...txs]);
-    setMonto(""); setDescripcion("");
+    setMonto(""); setDescripcion(""); setCategoriaId("");
     router.refresh();
   };
 
@@ -91,61 +124,93 @@ export function TransaccionesClient({
         <p className="text-muted-foreground">Registro diario · clasifica cada movimiento por categoría.</p>
       </div>
 
-      {categorias.length === 0 ? (
-        <Card>
-          <CardContent className="pt-6 text-center space-y-3">
-            <p className="text-muted-foreground">Aún no tienes categorías en este espacio.</p>
-            <Button asChild><Link href={`./categorias`}>Crear categorías primero</Link></Button>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardHeader><CardTitle>Nueva transacción</CardTitle></CardHeader>
-          <CardContent>
-            <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>Categoría</Label>
-                <Select value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)} required>
-                  {CATEGORIA_TIPOS.filter((t) => catsAgrupadas[t.value]?.length).map((t) => (
+      <Card>
+        <CardHeader><CardTitle>Nueva transacción</CardTitle></CardHeader>
+        <CardContent>
+          {/* Toggle Ingreso / Gasto — botones grandes y claros */}
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <button
+              type="button"
+              onClick={() => cambiarTipo("ingreso")}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 p-4 rounded-xl border-2 transition",
+                tipoMov === "ingreso"
+                  ? "border-success bg-success/10 text-success ring-2 ring-success/30"
+                  : "border-muted hover:border-success/50 hover:bg-success/5 text-muted-foreground"
+              )}
+            >
+              <TrendingUp className="h-6 w-6" />
+              <span className="font-bold text-base">💰 Ingreso</span>
+              <span className="text-xs opacity-70">Plata que TE ENTRÓ</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => cambiarTipo("gasto")}
+              className={cn(
+                "flex flex-col items-center justify-center gap-1 p-4 rounded-xl border-2 transition",
+                tipoMov === "gasto"
+                  ? "border-destructive bg-destructive/10 text-destructive ring-2 ring-destructive/30"
+                  : "border-muted hover:border-destructive/50 hover:bg-destructive/5 text-muted-foreground"
+              )}
+            >
+              <TrendingDown className="h-6 w-6" />
+              <span className="font-bold text-base">💸 Gasto</span>
+              <span className="text-xs opacity-70">Plata que SE FUE</span>
+            </button>
+          </div>
+
+          <form onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
+            <div className="space-y-2">
+              <Label>Monto *</Label>
+              <MoneyInput value={monto} onValueChange={setMonto} required autoFocus />
+            </div>
+            <div className="space-y-2">
+              <Label>Fecha — {formatDateLong(fecha)}</Label>
+              <Input type="date" required value={fecha} onChange={(e) => setFecha(e.target.value)} />
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Categoría (opcional)</Label>
+              <Select value={categoriaId} onChange={(e) => setCategoriaId(e.target.value)}>
+                <option value="">
+                  — Sin categoría (se asigna a "Otros {tipoMov === "ingreso" ? "ingresos" : "gastos"}") —
+                </option>
+                {tipoMov === "ingreso" ? (
+                  catsParaTipo.map((c) => (
+                    <option key={c.id} value={c.id}>{c.nombre}</option>
+                  ))
+                ) : (
+                  CATEGORIA_TIPOS.filter((t) => catsAgrupadas[t.value]?.length).map((t) => (
                     <optgroup key={t.value} label={`${t.emoji} ${t.label}`}>
                       {catsAgrupadas[t.value].map((c) => (
                         <option key={c.id} value={c.id}>{c.nombre}</option>
                       ))}
                     </optgroup>
-                  ))}
-                </Select>
-                {catActual && (
-                  <p className="text-xs text-muted-foreground">
-                    {TIPO_LABEL[catActual.tipo].emoji} {TIPO_LABEL[catActual.tipo].label}
-                  </p>
+                  ))
                 )}
-              </div>
-              <div className="space-y-2">
-                <Label>Monto</Label>
-                <MoneyInput value={monto} onValueChange={setMonto} required autoFocus />
-              </div>
-              <div className="space-y-2">
-                <Label>Fecha — {formatDateLong(fecha)}</Label>
-                <Input type="date" required value={fecha} onChange={(e) => setFecha(e.target.value)} />
-              </div>
-              <div className="space-y-2 sm:col-span-2">
-                <Label>Descripción (opcional)</Label>
-                <Textarea
-                  value={descripcion}
-                  onChange={(e) => setDescripcion(e.target.value)}
-                  placeholder="Ej: Almuerzo restaurante, mercado mensual, etc."
-                />
-              </div>
-              {error && <p className="text-sm text-destructive sm:col-span-2">{error}</p>}
-              <div className="sm:col-span-2">
-                <Button type="submit" disabled={loading} className="w-full sm:w-auto">
-                  {loading ? "Guardando..." : "Registrar"}
-                </Button>
-              </div>
-            </form>
-          </CardContent>
-        </Card>
-      )}
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Si dejas en blanco, se registra como "Otros {tipoMov === "ingreso" ? "ingresos" : "gastos"}" automáticamente.
+              </p>
+            </div>
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Descripción (opcional)</Label>
+              <Textarea
+                value={descripcion}
+                onChange={(e) => setDescripcion(e.target.value)}
+                placeholder={tipoMov === "ingreso"
+                  ? "Ej: Venta cliente Juan, sueldo mayo, transferencia mama..."
+                  : "Ej: Almuerzo restaurante, renta de casa, gasolina..."}
+              />
+            </div>
+            {error && <p className="text-sm text-destructive sm:col-span-2">{error}</p>}
+            <div className="sm:col-span-2">
+              <Button type="submit" disabled={loading} className="w-full sm:w-auto">
+                {loading ? "Guardando..." : tipoMov === "ingreso" ? "💰 Registrar ingreso" : "💸 Registrar gasto"}
+              </Button>
+            </div>
+          </form>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

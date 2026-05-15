@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -42,14 +42,13 @@ function diasRestantes(fecha: string): number {
   return Math.round((venc.getTime() - hoy.getTime()) / 86400000);
 }
 
-export function PagosClient({ espacioId, moneda, pagos: initial, categorias }: {
+export function PagosClient({ espacioId, moneda, pagos, categorias }: {
   espacioId: string; moneda: string;
   pagos: PagoDelMes[];
   categorias: Categoria[];
 }) {
   const router = useRouter();
   const supabase = createClient();
-  const [pagos, setPagos] = useState<PagoDelMes[]>(initial);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState<string | null>(null);
   const [form, setForm] = useState(FORM_DEFAULT);
@@ -89,7 +88,7 @@ export function PagosClient({ espacioId, moneda, pagos: initial, categorias }: {
     const payload: any = {
       espacio_id: espacioId,
       nombre, monto: Number(form.monto), dia_pago: Number(form.dia_pago),
-      categoria_id: form.categoria_id || null,
+      categoria_id: null,
       recurrencia: form.recurrencia,
       notas: form.notas.trim() || null,
     };
@@ -110,7 +109,6 @@ export function PagosClient({ espacioId, moneda, pagos: initial, categorias }: {
     if (!confirm(`¿Borrar el pago "${nombre}"? El histórico se conserva pero ya no aparece en próximos meses.`)) return;
     const { error } = await supabase.from("pagos_programados").update({ activo: false }).eq("id", id);
     if (error) { alert(error.message); return; }
-    setPagos(pagos.filter(p => p.id !== id));
     router.refresh();
   }
 
@@ -161,11 +159,11 @@ export function PagosClient({ espacioId, moneda, pagos: initial, categorias }: {
           </h1>
           <p className="text-muted-foreground text-sm">Tus pagos recurrentes con fecha. Te aviso cuando se acercan o vencen.</p>
         </div>
-        <Button onClick={abrirCrear}><Plus className="h-4 w-4 mr-1" /> Nuevo pago</Button>
+        <Button data-tour="pagos-nuevo" onClick={abrirCrear}><Plus className="h-4 w-4 mr-1" /> Nuevo pago</Button>
       </div>
 
       {/* KPIs */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div data-tour="pagos-kpis" className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <KpiBox label="Total del mes" value={formatMoney(totalMes, moneda)} sub={`${pagos.length} pagos`} />
         <KpiBox label="Ya pagué" value={formatMoney(totalPagado, moneda)} sub={`${pagados.length} pagos`} color="success" />
         <KpiBox label="Falta pagar" value={formatMoney(totalPendiente, moneda)} sub={`${pendientes.length + proximos.length + vencidos.length} pagos`} color={vencidos.length > 0 ? "destructive" : "primary"} />
@@ -211,18 +209,6 @@ export function PagosClient({ espacioId, moneda, pagos: initial, categorias }: {
                 </select>
               </div>
               <div className="space-y-1 sm:col-span-2">
-                <Label>Categoría (opcional)</Label>
-                <select
-                  value={form.categoria_id}
-                  onChange={(e) => setForm({ ...form, categoria_id: e.target.value })}
-                  className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-                >
-                  <option value="">— Sin categoría —</option>
-                  {categorias.map(c => <option key={c.id} value={c.id}>{c.nombre}</option>)}
-                </select>
-                <p className="text-[11px] text-muted-foreground">Cuando marques como pagado, la transacción se asignará a esta categoría.</p>
-              </div>
-              <div className="space-y-1 sm:col-span-2">
                 <Label>Notas (opcional)</Label>
                 <Input value={form.notas} onChange={(e) => setForm({ ...form, notas: e.target.value })} placeholder="Ej. Plan familiar Netflix, número de cuenta, etc." />
               </div>
@@ -237,6 +223,7 @@ export function PagosClient({ espacioId, moneda, pagos: initial, categorias }: {
         </Card>
       )}
 
+      <div data-tour="pagos-lista">
       {/* Vencidos (urgentes) */}
       {vencidos.length > 0 && (
         <SectionPagos
@@ -289,6 +276,7 @@ export function PagosClient({ espacioId, moneda, pagos: initial, categorias }: {
         />
       )}
 
+      </div>
       {pagos.length === 0 && (
         <Card className="border-2 border-dashed">
           <CardContent className="py-10 text-center space-y-2">

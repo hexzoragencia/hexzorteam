@@ -2,6 +2,8 @@ import { requireEspacio } from "@/lib/espacio";
 import { createClient } from "@/lib/supabase/server";
 import { PagosClient } from "./pagos-client";
 
+export const dynamic = "force-dynamic";
+
 export default async function PagosPage({ params }: { params: { slug: string } }) {
   const espacio = await requireEspacio(params.slug);
   const supabase = createClient();

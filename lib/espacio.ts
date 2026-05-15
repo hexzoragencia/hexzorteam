@@ -6,6 +6,32 @@ import type { Espacio, EspacioTipo } from "@/lib/types";
 export const PIN_COOKIE = (espacioId: string) => `pin_unlock_${espacioId}`;
 export const PIN_COOKIE_MAX_AGE = 60 * 60 * 8; // 8 horas
 
+export const VAULT_COOKIE = (espacioId: string) => `vault_unlock_${espacioId}`;
+
+export type VaultState =
+  | { state: "unconfigured"; esOwner: boolean }
+  | { state: "locked"; esOwner: boolean }
+  | { state: "unlocked"; esOwner: boolean };
+
+export async function getVaultState(espacioId: string): Promise<VaultState> {
+  const supabase = createClient();
+  const user = await getCurrentUser();
+  if (!user) return { state: "locked", esOwner: false };
+
+  const { data: miembro } = await supabase
+    .from("espacio_miembros").select("rol")
+    .eq("espacio_id", espacioId).eq("perfil_id", user.id).maybeSingle();
+  const esOwner = miembro?.rol === "owner" || miembro?.rol === "superadmin";
+
+  const { data: esp } = await supabase
+    .from("espacios").select("vault_pin_hash").eq("id", espacioId).maybeSingle();
+
+  if (!esp?.vault_pin_hash) return { state: "unconfigured", esOwner };
+
+  const unlocked = cookies().get(VAULT_COOKIE(espacioId))?.value;
+  return { state: unlocked ? "unlocked" : "locked", esOwner };
+}
+
 export async function getCurrentUser() {
   const supabase = createClient();
   const { data: { user } } = await supabase.auth.getUser();
