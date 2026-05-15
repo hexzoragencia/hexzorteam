@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Send, X, Loader2, Sparkles, MessageCircle, Mic, Square, ImagePlus } from "lucide-react";
+import { Send, X, Loader2, Sparkles, MessageCircle, Mic, Square, ImagePlus, EyeOff } from "lucide-react";
 import { useFloatingCorner, cornerClasses } from "./floating-pos";
 
 // Detecta la sección a partir del pathname.
@@ -45,6 +45,7 @@ const SALUDO_INICIAL: Mensaje = {
 };
 
 const POS_KEY = "coach-avatar-pos";
+const OCULTO_KEY = "coach-avatar-oculto";
 
 export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   const router = useRouter();
@@ -60,8 +61,27 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   const [transcribiendo, setTranscribiendo] = useState(false);
   const [imagenAdjunta, setImagenAdjunta] = useState<{ b64: string; preview: string } | null>(null);
   const [dragActivo, setDragActivo] = useState(false);
+  const [oculto, setOculto] = useState(false);
   const dragCounterRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Hidratar estado oculto persistido
+  useEffect(() => {
+    try {
+      const v = localStorage.getItem(OCULTO_KEY);
+      if (v === "1") setOculto(true);
+    } catch { /* ignore */ }
+  }, []);
+
+  function ocultarCoach() {
+    setOculto(true);
+    setOpen(false);
+    try { localStorage.setItem(OCULTO_KEY, "1"); } catch { /* ignore */ }
+  }
+  function mostrarCoach() {
+    setOculto(false);
+    try { localStorage.setItem(OCULTO_KEY, "0"); } catch { /* ignore */ }
+  }
   // Drag & drop libre para el muñeco cuando está cerrado
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const draggingRef = useRef(false);
@@ -327,6 +347,21 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
 
   if (!hydrated) return null;
 
+  // ===== OCULTO — mini-botón discreto para reactivar =====
+  if (oculto) {
+    return (
+      <button
+        onClick={mostrarCoach}
+        className="fixed bottom-4 right-4 z-50 h-11 w-11 rounded-full bg-card border-2 border-primary/40 shadow-lg flex items-center justify-center hover:bg-primary/10 hover:border-primary transition group"
+        title="Mostrar coach IA"
+        aria-label="Mostrar coach IA"
+      >
+        <Sparkles className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
+        <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary animate-pulse"></span>
+      </button>
+    );
+  }
+
   // ===== BOTÓN FLOTANTE (cerrado) =====
   // Drag & drop libre: el usuario lo arrastra a donde quiera, posición se guarda
   // en localStorage. Si solo hace click (sin arrastrar), se abre el chat.
@@ -347,6 +382,17 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
         className={cn("group flex flex-col items-end select-none", fallbackPosClass)}
         aria-label="Coach IA — arrastra para mover, click para abrir"
       >
+        {/* Botón "ocultar" — aparece al hover (no se activa con drag porque tiene pointerdown stop) */}
+        <button
+          onPointerDown={(e) => e.stopPropagation()}
+          onClick={(e) => { e.stopPropagation(); ocultarCoach(); }}
+          className="self-end mb-1 mr-1 h-6 w-6 rounded-full bg-card border border-primary/40 shadow-md flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Ocultar coach"
+          aria-label="Ocultar coach"
+        >
+          <EyeOff className="h-3 w-3" />
+        </button>
+
         {/* Burbuja "tipo nube" — siempre visible */}
         <div className="relative mb-2 mr-4 px-3 py-1.5 rounded-2xl bg-card border-2 border-primary/40 shadow-lg text-xs font-medium max-w-[160px] text-center brand-glow pointer-events-none">
           <span>¡Hola! Háblame ✨</span>
@@ -425,6 +471,9 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
         </div>
         <button onClick={limpiar} className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted" title="Limpiar conversación">
           <Sparkles className="h-4 w-4" />
+        </button>
+        <button onClick={ocultarCoach} className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted" title="Ocultar coach (volver a mostrar con el ✨)">
+          <EyeOff className="h-4 w-4" />
         </button>
         <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted" title="Cerrar">
           <X className="h-4 w-4" />
