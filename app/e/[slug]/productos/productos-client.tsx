@@ -3,16 +3,17 @@
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Package, Plus, Trash2, Pencil, ExternalLink, Save, X as Close, Search,
   Beaker, Lightbulb, ShieldCheck, Trophy, XCircle, PauseCircle,
+  ChevronRight, ChevronDown, Tag, DollarSign, Link as LinkIcon,
+  Calendar as CalendarIcon, StickyNote, ArrowRight, MoreHorizontal,
+  TrendingUp, User as UserIcon, Globe2,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
-import { formatMoney } from "@/lib/utils";
+import { cn, formatMoney } from "@/lib/utils";
 
 type Producto = {
   id: string; espacio_id: string; nombre: string; proveedor: string | null;
@@ -27,28 +28,45 @@ type Producto = {
 };
 
 const ESTADOS = [
-  { value: "testeo",      label: "Testeo",       color: "bg-warning/15 text-warning",      icon: Beaker },
-  { value: "aprendizaje", label: "Aprendizaje",  color: "bg-blue-500/15 text-blue-500",    icon: Lightbulb },
-  { value: "validado",    label: "Validado",     color: "bg-success/15 text-success",      icon: ShieldCheck },
-  { value: "winner",      label: "Winner",       color: "bg-primary/15 text-primary",      icon: Trophy },
-  { value: "apagado",     label: "Apagado",      color: "bg-muted text-muted-foreground",  icon: PauseCircle },
-  { value: "descartado",  label: "Descartado",   color: "bg-destructive/10 text-destructive", icon: XCircle },
+  { value: "testeo",      label: "Testeo",       short: "Testeo",   icon: Beaker,       dot: "bg-amber-500",   text: "text-amber-600 dark:text-amber-400",  bar: "bg-amber-500",   bg: "bg-amber-500/10",   border: "border-amber-500/30" },
+  { value: "aprendizaje", label: "Aprendizaje",  short: "Aprende",  icon: Lightbulb,    dot: "bg-blue-500",    text: "text-blue-600 dark:text-blue-400",    bar: "bg-blue-500",    bg: "bg-blue-500/10",    border: "border-blue-500/30" },
+  { value: "validado",    label: "Validado",     short: "Validado", icon: ShieldCheck,  dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
+  { value: "winner",      label: "Winner",       short: "Winner",   icon: Trophy,       dot: "bg-primary",     text: "text-primary",                        bar: "bg-primary",     bg: "bg-primary/10",     border: "border-primary/30" },
+  { value: "apagado",     label: "Apagado",      short: "Apagado",  icon: PauseCircle,  dot: "bg-zinc-400",    text: "text-zinc-500",                       bar: "bg-zinc-400",    bg: "bg-zinc-500/10",    border: "border-zinc-500/30" },
+  { value: "descartado",  label: "Descartado",   short: "Descart.", icon: XCircle,      dot: "bg-rose-500",    text: "text-rose-600 dark:text-rose-400",    bar: "bg-rose-500",    bg: "bg-rose-500/10",    border: "border-rose-500/30" },
 ] as const;
 
+const ESTADOS_FLUJO = ["testeo", "aprendizaje", "validado", "winner"] as const;
+const ESTADOS_INACTIVOS = ["apagado", "descartado"] as const;
+
 const PAISES = [
-  { value: "CO", label: "🇨🇴 Colombia" },
-  { value: "MX", label: "🇲🇽 México" },
-  { value: "EC", label: "🇪🇨 Ecuador" },
-  { value: "PE", label: "🇵🇪 Perú" },
-  { value: "GT", label: "🇬🇹 Guatemala" },
-  { value: "ES", label: "🇪🇸 España" },
-  { value: "CL", label: "🇨🇱 Chile" },
-  { value: "USA", label: "🇺🇸 USA" },
-  { value: "OTRO", label: "Otro" },
+  { value: "CO", flag: "🇨🇴", label: "Colombia" },
+  { value: "MX", flag: "🇲🇽", label: "México" },
+  { value: "EC", flag: "🇪🇨", label: "Ecuador" },
+  { value: "PE", flag: "🇵🇪", label: "Perú" },
+  { value: "GT", flag: "🇬🇹", label: "Guatemala" },
+  { value: "ES", flag: "🇪🇸", label: "España" },
+  { value: "CL", flag: "🇨🇱", label: "Chile" },
+  { value: "USA", flag: "🇺🇸", label: "USA" },
+  { value: "OTRO", flag: "🌐", label: "Otro" },
 ];
 
 type FormState = Partial<Producto>;
 const FORM_DEFAULT: FormState = { estado: "testeo", plataforma: "TT+FB", tipo: "dropshipping", pais: "CO" };
+
+function getEstado(v?: string) {
+  return ESTADOS.find(e => e.value === v) ?? ESTADOS[0];
+}
+
+function calcMargen(precio?: number | null, costo?: number | null): number | null {
+  if (!precio || !costo || precio <= 0) return null;
+  return Math.round(((precio - costo) / precio) * 100);
+}
+
+function iniciales(nombre?: string): string {
+  if (!nombre) return "?";
+  return nombre.split(/\s+/).slice(0, 2).map(s => s[0]?.toUpperCase() ?? "").join("");
+}
 
 export function ProductosClient({ espacioId, moneda, productos: initial, miembros }: {
   espacioId: string; moneda: string;
@@ -64,7 +82,9 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState<FormState>(FORM_DEFAULT);
   const [saving, setSaving] = useState(false);
+  const [menuAbierto, setMenuAbierto] = useState<string | null>(null);
 
+  // Filtrado
   const filtrados = useMemo(() => {
     const q = busqueda.toLowerCase().trim();
     return productos.filter(p => {
@@ -74,9 +94,16 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
     });
   }, [productos, filtroEstado, busqueda]);
 
-  const conteoPorEstado = useMemo(() => {
-    const m: Record<string, number> = {};
-    for (const p of productos) m[p.estado] = (m[p.estado] ?? 0) + 1;
+  // Conteos y stats por estado
+  const stats = useMemo(() => {
+    const m: Record<string, { count: number; invertido: number }> = {};
+    for (const e of ESTADOS) m[e.value] = { count: 0, invertido: 0 };
+    for (const p of productos) {
+      const k = p.estado;
+      if (!m[k]) m[k] = { count: 0, invertido: 0 };
+      m[k].count += 1;
+      if (p.costo_proveedor && p.stock) m[k].invertido += p.costo_proveedor * p.stock;
+    }
     return m;
   }, [productos]);
 
@@ -143,145 +170,180 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
   }
 
   async function cambiarEstado(id: string, nuevoEstado: Producto["estado"]) {
+    setMenuAbierto(null);
     const { error } = await supabase.from("emp_productos").update({ estado: nuevoEstado }).eq("id", id);
     if (error) { alert(error.message); return; }
     setProductos(productos.map(p => p.id === id ? { ...p, estado: nuevoEstado } : p));
     router.refresh();
   }
 
+  const responsableNombre = (id: string | null) => {
+    if (!id) return null;
+    return miembros.find(m => m.id === id)?.nombre ?? null;
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-6" onClick={() => setMenuAbierto(null)}>
+      {/* ====== HEADER ====== */}
       <div className="flex items-start justify-between flex-wrap gap-3">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight flex items-center gap-2">
-            <Package className="h-7 w-7 text-primary" /> Productos
-          </h1>
-          <p className="text-muted-foreground text-sm">Catálogo de tu negocio. Estados: testeo → aprendizaje → validado → winner.</p>
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center relative">
+            <div className="absolute inset-0 rounded-xl bg-primary/20 blur-md"></div>
+            <Package className="h-5 w-5 text-primary relative" />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Productos</h1>
+            <p className="text-xs text-muted-foreground">
+              {productos.length} {productos.length === 1 ? "producto" : "productos"} en el catálogo
+            </p>
+          </div>
         </div>
-        <Button onClick={abrirCrear}><Plus className="h-4 w-4 mr-1" /> Nuevo producto</Button>
+        <Button onClick={abrirCrear} className="shadow-md shadow-primary/20">
+          <Plus className="h-4 w-4 mr-1.5" /> Nuevo producto
+        </Button>
       </div>
 
-      {/* KPIs por estado */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2">
-        <FiltroChip
-          label="Todos" count={productos.length} activo={filtroEstado === "todos"}
-          onClick={() => setFiltroEstado("todos")}
-        />
-        {ESTADOS.map(e => (
-          <FiltroChip
-            key={e.value}
-            label={e.label}
-            count={conteoPorEstado[e.value] ?? 0}
-            activo={filtroEstado === e.value}
-            color={e.color}
-            icon={<e.icon className="h-3.5 w-3.5" />}
-            onClick={() => setFiltroEstado(e.value)}
-          />
-        ))}
-      </div>
-
-      {/* Buscador */}
-      <div className="relative max-w-sm">
-        <Search className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+      {/* ====== BUSCADOR ====== */}
+      <div className="relative">
+        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
-          placeholder="Buscar por nombre o proveedor..."
           value={busqueda}
           onChange={(e) => setBusqueda(e.target.value)}
-          className="pl-9"
+          placeholder="Buscar por nombre o proveedor…"
+          className="pl-10 h-11"
         />
+        {busqueda && (
+          <button
+            onClick={() => setBusqueda("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-muted text-muted-foreground"
+          >
+            <Close className="h-3.5 w-3.5" />
+          </button>
+        )}
       </div>
 
-      {/* Formulario */}
+      {/* ====== PIPELINE VISUAL — FLUJO DEL PRODUCTO ====== */}
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Flujo del producto</h2>
+          {filtroEstado !== "todos" && (
+            <button onClick={() => setFiltroEstado("todos")} className="text-xs text-primary hover:underline flex items-center gap-1">
+              <Close className="h-3 w-3" /> Quitar filtro
+            </button>
+          )}
+        </div>
+
+        {/* Flujo activo: Testeo → Aprendizaje → Validado → Winner */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-0 lg:items-stretch">
+          {ESTADOS_FLUJO.map((v, idx) => {
+            const e = getEstado(v);
+            const s = stats[v];
+            const activo = filtroEstado === v;
+            const total = filtroEstado === "todos" ? productos.length : (stats[filtroEstado]?.count ?? 0);
+            return (
+              <div key={v} className="flex items-stretch">
+                <button
+                  onClick={() => setFiltroEstado(activo ? "todos" : v)}
+                  className={cn(
+                    "flex-1 group relative text-left rounded-xl border bg-card p-3 transition-all",
+                    activo
+                      ? cn(e.border, e.bg, "shadow-md")
+                      : "border-border hover:border-primary/30 hover:shadow-sm",
+                  )}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className={cn("w-2 h-2 rounded-full", e.dot)}></span>
+                    <span className={cn("text-[11px] uppercase tracking-wider font-semibold", activo ? e.text : "text-muted-foreground")}>
+                      {e.label}
+                    </span>
+                  </div>
+                  <div className="mt-1 flex items-baseline gap-2">
+                    <span className={cn("text-2xl font-bold tabular-nums", activo && e.text)}>{s?.count ?? 0}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {s?.count === 1 ? "producto" : "productos"}
+                    </span>
+                  </div>
+                </button>
+                {idx < ESTADOS_FLUJO.length - 1 && (
+                  <div className="hidden lg:flex items-center justify-center px-1.5 shrink-0">
+                    <ArrowRight className="h-3.5 w-3.5 text-muted-foreground/40" />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Estados inactivos: Apagado · Descartado */}
+        <div className="flex flex-wrap gap-2 pt-1">
+          <button
+            onClick={() => setFiltroEstado("todos")}
+            className={cn(
+              "text-[11px] px-3 py-1.5 rounded-full border transition",
+              filtroEstado === "todos"
+                ? "bg-primary/10 border-primary/30 text-primary font-medium"
+                : "bg-card border-border text-muted-foreground hover:border-primary/30",
+            )}
+          >
+            Todos · {productos.length}
+          </button>
+          {ESTADOS_INACTIVOS.map(v => {
+            const e = getEstado(v);
+            const s = stats[v];
+            const activo = filtroEstado === v;
+            return (
+              <button
+                key={v}
+                onClick={() => setFiltroEstado(activo ? "todos" : v)}
+                className={cn(
+                  "text-[11px] px-3 py-1.5 rounded-full border transition inline-flex items-center gap-1.5",
+                  activo
+                    ? cn(e.border, e.bg, e.text, "font-medium")
+                    : "bg-card border-border text-muted-foreground hover:border-primary/30",
+                )}
+              >
+                <span className={cn("w-1.5 h-1.5 rounded-full", e.dot)}></span>
+                {e.label} · {s?.count ?? 0}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ====== FORMULARIO ====== */}
       {showForm && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base flex items-center gap-2">
-              {editing ? <Pencil className="h-4 w-4" /> : <Plus className="h-4 w-4" />}
-              {editing ? "Editar producto" : "Nuevo producto"}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid sm:grid-cols-2 gap-3">
-              <Field label="Nombre *" name="nombre" value={form.nombre ?? ""} onChange={(v) => setForm({ ...form, nombre: v })} placeholder="Ej. Procesador de alimentos" />
-              <Field label="Proveedor" name="proveedor" value={form.proveedor ?? ""} onChange={(v) => setForm({ ...form, proveedor: v })} placeholder="Oh Homie" />
-              <SelectField label="País" value={form.pais ?? ""} onChange={(v) => setForm({ ...form, pais: v })} options={PAISES} />
-              <SelectField
-                label="Responsable"
-                value={form.responsable_id ?? ""}
-                onChange={(v) => setForm({ ...form, responsable_id: v || null })}
-                options={[{ value: "", label: "— Sin asignar —" }, ...miembros.map(m => ({ value: m.id, label: m.nombre }))]}
-              />
-              <SelectField
-                label="Estado"
-                value={form.estado ?? "testeo"}
-                onChange={(v) => setForm({ ...form, estado: v as any })}
-                options={ESTADOS.map(e => ({ value: e.value, label: e.label }))}
-              />
-              <SelectField
-                label="Plataforma"
-                value={form.plataforma ?? ""}
-                onChange={(v) => setForm({ ...form, plataforma: v })}
-                options={[
-                  { value: "TT", label: "TikTok" },
-                  { value: "FB", label: "Facebook" },
-                  { value: "TT+FB", label: "TikTok + Facebook" },
-                  { value: "Otro", label: "Otro" },
-                ]}
-              />
-              <NumField label={`Costo proveedor (${moneda})`} value={form.costo_proveedor} onChange={(v) => setForm({ ...form, costo_proveedor: v })} />
-              <NumField label={`Precio final (${moneda})`} value={form.precio_final} onChange={(v) => setForm({ ...form, precio_final: v })} />
-              <NumField label={`Precio 2 und (${moneda})`} value={form.precio_2und} onChange={(v) => setForm({ ...form, precio_2und: v })} />
-              <NumField label={`Precio x3 (${moneda})`} value={form.precio_x3} onChange={(v) => setForm({ ...form, precio_x3: v })} />
-              <NumField label="Stock" value={form.stock} onChange={(v) => setForm({ ...form, stock: v })} step={1} />
-              <SelectField
-                label="Tipo"
-                value={form.tipo ?? "dropshipping"}
-                onChange={(v) => setForm({ ...form, tipo: v })}
-                options={[
-                  { value: "dropshipping", label: "Dropshipping" },
-                  { value: "importacion",  label: "Importación" },
-                  { value: "local",        label: "Local" },
-                  { value: "otro",         label: "Otro" },
-                ]}
-              />
-              <Field label="Link landing" name="link_landing" value={form.link_landing ?? ""} onChange={(v) => setForm({ ...form, link_landing: v })} placeholder="https://..." />
-              <Field label="Link drive" name="link_drive" value={form.link_drive ?? ""} onChange={(v) => setForm({ ...form, link_drive: v })} placeholder="https://drive.google.com/..." />
-              <Field label="Link creativos" name="link_creativos" value={form.link_creativos ?? ""} onChange={(v) => setForm({ ...form, link_creativos: v })} placeholder="https://..." />
-              <Field label="Fecha activación TT" name="ftt" type="date" value={form.fecha_activacion_tt ?? ""} onChange={(v) => setForm({ ...form, fecha_activacion_tt: v })} />
-              <Field label="Fecha activación FB" name="ffb" type="date" value={form.fecha_activacion_fb ?? ""} onChange={(v) => setForm({ ...form, fecha_activacion_fb: v })} />
-            </div>
-            <div className="space-y-1">
-              <Label htmlFor="obs">Observación</Label>
-              <textarea
-                id="obs" rows={2} value={form.observacion ?? ""}
-                onChange={(e) => setForm({ ...form, observacion: e.target.value })}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                placeholder="Notas, hallazgos, contexto del producto..."
-              />
-            </div>
-            <div className="flex gap-2">
-              <Button onClick={guardar} disabled={saving}>
-                <Save className="h-4 w-4 mr-1" /> {saving ? "Guardando..." : "Guardar"}
-              </Button>
-              <Button variant="outline" onClick={cancelar}>Cancelar</Button>
-            </div>
-          </CardContent>
-        </Card>
+        <FormularioProducto
+          form={form}
+          setForm={setForm}
+          editing={!!editing}
+          saving={saving}
+          moneda={moneda}
+          miembros={miembros}
+          onGuardar={guardar}
+          onCancelar={cancelar}
+        />
       )}
 
-      {/* Tabla de productos */}
+      {/* ====== LISTADO ====== */}
       {filtrados.length === 0 ? (
-        <Card className="border-2 border-dashed">
-          <CardContent className="py-10 text-center space-y-2">
-            <Package className="h-10 w-10 mx-auto text-muted-foreground" />
-            <p className="text-sm text-muted-foreground">
-              {productos.length === 0 ? "Aún no tienes productos registrados." : "No hay productos que coincidan con tu filtro."}
+        <div className="rounded-xl border-2 border-dashed border-border bg-card/40 py-16 text-center space-y-3">
+          <Package className="h-12 w-12 mx-auto text-muted-foreground/30" />
+          <div>
+            <p className="text-sm font-medium">
+              {productos.length === 0 ? "Aún no tienes productos" : "Sin resultados"}
             </p>
-            {productos.length === 0 && (
-              <Button onClick={abrirCrear} variant="outline"><Plus className="h-4 w-4 mr-1" /> Agregar el primero</Button>
-            )}
-          </CardContent>
-        </Card>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {productos.length === 0
+                ? "Crea el primero para empezar a operar"
+                : busqueda ? "Prueba con otra búsqueda" : "No hay productos en este estado"}
+            </p>
+          </div>
+          {productos.length === 0 && (
+            <Button onClick={abrirCrear} variant="outline" size="sm">
+              <Plus className="h-4 w-4 mr-1" /> Crear el primero
+            </Button>
+          )}
+        </div>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {filtrados.map(p => (
@@ -289,6 +351,9 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
               key={p.id}
               p={p}
               moneda={moneda}
+              responsable={responsableNombre(p.responsable_id)}
+              menuAbierto={menuAbierto === p.id}
+              onAbrirMenu={(open) => setMenuAbierto(open ? p.id : null)}
               onEditar={() => abrirEditar(p)}
               onBorrar={() => borrar(p.id, p.nombre)}
               onCambiarEstado={(nuevo) => cambiarEstado(p.id, nuevo)}
@@ -300,156 +365,477 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
   );
 }
 
-function ProductoCard({ p, moneda, onEditar, onBorrar, onCambiarEstado }: {
-  p: Producto; moneda: string;
+// ============================================================
+// CARD DE PRODUCTO — jerarquía visual clara
+// ============================================================
+function ProductoCard({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEditar, onBorrar, onCambiarEstado }: {
+  p: Producto; moneda: string; responsable: string | null;
+  menuAbierto: boolean; onAbrirMenu: (open: boolean) => void;
   onEditar: () => void; onBorrar: () => void;
   onCambiarEstado: (n: Producto["estado"]) => void;
 }) {
-  const estadoCfg = ESTADOS.find(e => e.value === p.estado);
-  const Icon = estadoCfg?.icon ?? Beaker;
+  const e = getEstado(p.estado);
+  const Icon = e.icon;
   const pais = PAISES.find(c => c.value === p.pais);
+  const margen = calcMargen(p.precio_final, p.costo_proveedor);
+  const tieneLinks = !!(p.link_landing || p.link_drive || p.link_creativos);
+
   return (
-    <Card className="overflow-hidden hover:border-primary/40 transition-colors">
-      <CardContent className="p-4 space-y-3">
+    <div className="group relative rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all">
+      {/* Banda superior con color de estado */}
+      <div className={cn("h-1 w-full", e.bar)}></div>
+
+      <div className="p-4 space-y-3">
+        {/* Cabecera: nombre + estado + menú */}
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <h3 className="font-semibold truncate">{p.nombre}</h3>
-            <p className="text-xs text-muted-foreground truncate">
-              {p.proveedor ?? "—"} {pais && `· ${pais.label}`}
-            </p>
+            <h3 className="font-semibold text-[15px] leading-tight truncate">{p.nombre}</h3>
+            <div className={cn("inline-flex items-center gap-1 mt-1 text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded", e.bg, e.text)}>
+              <Icon className="h-2.5 w-2.5" />
+              {e.label}
+            </div>
           </div>
-          <span className={cn("text-[10px] uppercase tracking-wide px-2 py-0.5 rounded font-semibold inline-flex items-center gap-1 shrink-0", estadoCfg?.color)}>
-            <Icon className="h-3 w-3" /> {estadoCfg?.label}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2 text-xs">
-          <div>
-            <span className="text-muted-foreground">Costo</span>
-            <div className="font-medium tabular-nums">{p.costo_proveedor ? formatMoney(p.costo_proveedor, moneda) : "—"}</div>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Precio</span>
-            <div className="font-medium tabular-nums">{p.precio_final ? formatMoney(p.precio_final, moneda) : "—"}</div>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Stock</span>
-            <div className="font-medium tabular-nums">{p.stock ?? 0}</div>
-          </div>
-          <div>
-            <span className="text-muted-foreground">Plataforma</span>
-            <div className="font-medium">{p.plataforma ?? "—"}</div>
-          </div>
-        </div>
-
-        {(p.link_landing || p.link_drive || p.link_creativos) && (
-          <div className="flex flex-wrap gap-1.5 pt-1 border-t">
-            {p.link_landing && <LinkBtn label="Landing" href={p.link_landing} />}
-            {p.link_drive && <LinkBtn label="Drive" href={p.link_drive} />}
-            {p.link_creativos && <LinkBtn label="Creativos" href={p.link_creativos} />}
-          </div>
-        )}
-
-        {/* Selector rápido de estado */}
-        <div className="flex flex-wrap gap-1 pt-1 border-t">
-          {ESTADOS.map(e => (
+          <div className="relative shrink-0" onClick={(ev) => ev.stopPropagation()}>
             <button
-              key={e.value}
-              onClick={() => p.estado !== e.value && onCambiarEstado(e.value as Producto["estado"])}
-              className={cn(
-                "text-[9px] uppercase tracking-wide px-1.5 py-0.5 rounded font-semibold transition",
-                p.estado === e.value ? e.color : "text-muted-foreground hover:bg-muted"
-              )}
-              title={`Cambiar a ${e.label}`}
+              onClick={() => onAbrirMenu(!menuAbierto)}
+              className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
+              title="Cambiar estado"
             >
-              {e.label.slice(0, 4)}
+              <MoreHorizontal className="h-4 w-4" />
             </button>
-          ))}
+            {menuAbierto && (
+              <div className="absolute right-0 top-8 z-20 w-48 rounded-lg border border-border bg-card shadow-xl overflow-hidden">
+                <div className="px-3 py-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground border-b border-border/50">
+                  Cambiar estado a…
+                </div>
+                {ESTADOS.map(es => (
+                  <button
+                    key={es.value}
+                    onClick={() => onCambiarEstado(es.value as Producto["estado"])}
+                    disabled={es.value === p.estado}
+                    className={cn(
+                      "w-full px-3 py-1.5 text-left text-sm flex items-center gap-2 hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed",
+                    )}
+                  >
+                    <span className={cn("w-1.5 h-1.5 rounded-full", es.dot)}></span>
+                    <span className={cn(es.value === p.estado && "font-semibold")}>{es.label}</span>
+                    {es.value === p.estado && <span className="ml-auto text-[10px] text-muted-foreground">actual</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
-        <div className="flex justify-end gap-1 pt-1">
-          <Button size="icon" variant="ghost" onClick={onEditar} className="h-7 w-7 text-muted-foreground hover:text-foreground">
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
-          <Button size="icon" variant="ghost" onClick={onBorrar} className="h-7 w-7 text-muted-foreground hover:text-destructive">
-            <Trash2 className="h-3.5 w-3.5" />
-          </Button>
+        {/* Fila de meta: responsable, país, plataforma */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {responsable ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span className="w-5 h-5 rounded-full bg-primary/15 text-primary text-[9px] font-bold flex items-center justify-center">
+                {iniciales(responsable)}
+              </span>
+              <span className="truncate max-w-[100px]">{responsable}</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-muted-foreground/60">
+              <UserIcon className="h-3 w-3" /> Sin asignar
+            </span>
+          )}
+          {pais && (
+            <span className="inline-flex items-center gap-1">
+              <span className="text-sm">{pais.flag}</span>
+              <span>{pais.value}</span>
+            </span>
+          )}
+          {p.plataforma && (
+            <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted">
+              {p.plataforma}
+            </span>
+          )}
         </div>
-      </CardContent>
-    </Card>
+
+        {/* Bloque de números: precio, costo, margen */}
+        <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted/40 p-2">
+          <div className="text-center">
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Costo</div>
+            <div className="text-xs font-semibold tabular-nums truncate">
+              {p.costo_proveedor ? formatMoney(p.costo_proveedor, moneda) : "—"}
+            </div>
+          </div>
+          <div className="text-center border-x border-border/50">
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Precio</div>
+            <div className="text-xs font-semibold tabular-nums truncate">
+              {p.precio_final ? formatMoney(p.precio_final, moneda) : "—"}
+            </div>
+          </div>
+          <div className="text-center">
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Margen</div>
+            <div className={cn(
+              "text-xs font-bold tabular-nums",
+              margen === null ? "text-muted-foreground" :
+              margen >= 60 ? "text-emerald-600 dark:text-emerald-400" :
+              margen >= 40 ? "text-amber-600 dark:text-amber-400" :
+              "text-rose-600 dark:text-rose-400"
+            )}>
+              {margen !== null ? `${margen}%` : "—"}
+            </div>
+          </div>
+        </div>
+
+        {/* Links + Stock + Acciones */}
+        <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center gap-1.5">
+            {p.link_landing && <LinkIcon2 href={p.link_landing} label="Landing" color="bg-blue-500/15 text-blue-600 dark:text-blue-400" />}
+            {p.link_drive && <LinkIcon2 href={p.link_drive} label="Drive" color="bg-amber-500/15 text-amber-600 dark:text-amber-400" />}
+            {p.link_creativos && <LinkIcon2 href={p.link_creativos} label="Creativos" color="bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" />}
+            {!tieneLinks && (
+              <span className="text-[10px] text-muted-foreground/60 italic">Sin links</span>
+            )}
+          </div>
+          <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button onClick={onEditar} title="Editar" className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground">
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={onBorrar} title="Borrar" className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
 
-function LinkBtn({ label, href }: { label: string; href: string }) {
+function LinkIcon2({ href, label, color }: { href: string; label: string; color: string }) {
   return (
     <a
-      href={href} target="_blank" rel="noopener noreferrer"
-      className="inline-flex items-center gap-1 text-[10px] uppercase tracking-wide px-2 py-0.5 rounded bg-primary/10 text-primary hover:bg-primary/20 transition"
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={label}
+      className={cn("inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded uppercase tracking-wider hover:opacity-80 transition", color)}
     >
-      <ExternalLink className="h-2.5 w-2.5" /> {label}
+      <ExternalLink className="h-2.5 w-2.5" />
+      {label}
     </a>
   );
 }
 
-function FiltroChip({ label, count, activo, onClick, color, icon }: {
-  label: string; count: number; activo: boolean; onClick: () => void; color?: string; icon?: React.ReactNode;
+// ============================================================
+// FORMULARIO EN 5 SECCIONES COLAPSABLES
+// ============================================================
+function FormularioProducto({ form, setForm, editing, saving, moneda, miembros, onGuardar, onCancelar }: {
+  form: FormState;
+  setForm: (f: FormState) => void;
+  editing: boolean;
+  saving: boolean;
+  moneda: string;
+  miembros: { id: string; nombre: string }[];
+  onGuardar: () => void;
+  onCancelar: () => void;
 }) {
+  const [abierto, setAbierto] = useState<Record<string, boolean>>({
+    basico: true,
+    costos: false,
+    recursos: false,
+    activaciones: false,
+    observaciones: false,
+  });
+
+  const toggle = (k: string) => setAbierto(a => ({ ...a, [k]: !a[k] }));
+
+  const margenForm = calcMargen(form.precio_final, form.costo_proveedor);
+
   return (
-    <button
-      onClick={onClick}
-      className={cn(
-        "rounded-md border bg-card p-2.5 text-left transition hover:border-primary/40",
-        activo && "border-primary bg-primary/5"
-      )}
-    >
-      <div className="flex items-center gap-1.5 text-xs font-medium">
-        {icon && <span className={cn("inline-flex", color?.split(" ")[1])}>{icon}</span>}
-        {label}
+    <div className="rounded-xl border border-primary/30 bg-card shadow-lg shadow-primary/5 overflow-hidden">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-gradient-to-r from-primary/5 to-transparent">
+        <div className="flex items-center gap-2">
+          {editing ? <Pencil className="h-4 w-4 text-primary" /> : <Plus className="h-4 w-4 text-primary" />}
+          <h3 className="font-semibold text-sm">{editing ? "Editar producto" : "Nuevo producto"}</h3>
+        </div>
+        <button onClick={onCancelar} className="p-1 rounded-md hover:bg-muted text-muted-foreground">
+          <Close className="h-4 w-4" />
+        </button>
       </div>
-      <div className="text-2xl font-bold tabular-nums mt-0.5">{count}</div>
-    </button>
-  );
-}
 
-function Field({ label, name, value, onChange, placeholder, type = "text" }: {
-  label: string; name: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string;
-}) {
-  return (
-    <div className="space-y-1">
-      <Label htmlFor={name}>{label}</Label>
-      <Input id={name} type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} />
+      <div className="divide-y divide-border">
+        {/* SECCIÓN 1 — BÁSICO */}
+        <Section
+          icon={<Tag className="h-4 w-4" />}
+          label="Información básica"
+          open={abierto.basico}
+          onToggle={() => toggle("basico")}
+          required
+        >
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Campo label="Nombre del producto *">
+              <Input
+                value={form.nombre ?? ""}
+                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+                placeholder="Ej. Procesador de alimentos"
+                autoFocus
+                className="h-10"
+              />
+            </Campo>
+            <Campo label="Proveedor">
+              <Input
+                value={form.proveedor ?? ""}
+                onChange={(e) => setForm({ ...form, proveedor: e.target.value })}
+                placeholder="Oh Homie, Dropi, etc."
+                className="h-10"
+              />
+            </Campo>
+            <Campo label="País">
+              <Select
+                value={form.pais ?? ""}
+                onChange={(v) => setForm({ ...form, pais: v })}
+                options={PAISES.map(p => ({ value: p.value, label: `${p.flag} ${p.label}` }))}
+              />
+            </Campo>
+            <Campo label="Responsable">
+              <Select
+                value={form.responsable_id ?? ""}
+                onChange={(v) => setForm({ ...form, responsable_id: v || null })}
+                options={[{ value: "", label: "— Sin asignar —" }, ...miembros.map(m => ({ value: m.id, label: m.nombre }))]}
+              />
+            </Campo>
+            <Campo label="Plataforma">
+              <Select
+                value={form.plataforma ?? ""}
+                onChange={(v) => setForm({ ...form, plataforma: v })}
+                options={[
+                  { value: "TT", label: "TikTok" },
+                  { value: "FB", label: "Facebook" },
+                  { value: "TT+FB", label: "TikTok + Facebook" },
+                  { value: "Otro", label: "Otro" },
+                ]}
+              />
+            </Campo>
+            <Campo label="Estado">
+              <Select
+                value={form.estado ?? "testeo"}
+                onChange={(v) => setForm({ ...form, estado: v as any })}
+                options={ESTADOS.map(e => ({ value: e.value, label: e.label }))}
+              />
+            </Campo>
+            <Campo label="Tipo">
+              <Select
+                value={form.tipo ?? "dropshipping"}
+                onChange={(v) => setForm({ ...form, tipo: v })}
+                options={[
+                  { value: "dropshipping", label: "Dropshipping" },
+                  { value: "importacion",  label: "Importación" },
+                  { value: "local",        label: "Local" },
+                  { value: "otro",         label: "Otro" },
+                ]}
+              />
+            </Campo>
+            <Campo label="Stock">
+              <Input
+                type="number"
+                step={1}
+                value={form.stock ?? ""}
+                onChange={(e) => setForm({ ...form, stock: e.target.value === "" ? null : Number(e.target.value) })}
+                className="h-10 tabular-nums"
+              />
+            </Campo>
+          </div>
+        </Section>
+
+        {/* SECCIÓN 2 — COSTOS */}
+        <Section
+          icon={<DollarSign className="h-4 w-4" />}
+          label="Costos y precios"
+          open={abierto.costos}
+          onToggle={() => toggle("costos")}
+          rightSlot={
+            margenForm !== null ? (
+              <span className={cn(
+                "text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded",
+                margenForm >= 60 ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" :
+                margenForm >= 40 ? "bg-amber-500/15 text-amber-600 dark:text-amber-400" :
+                "bg-rose-500/15 text-rose-600 dark:text-rose-400"
+              )}>
+                Margen {margenForm}%
+              </span>
+            ) : null
+          }
+        >
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Campo label={`Costo proveedor (${moneda})`}>
+              <Input
+                type="number" step={0.01}
+                value={form.costo_proveedor ?? ""}
+                onChange={(e) => setForm({ ...form, costo_proveedor: e.target.value === "" ? null : Number(e.target.value) })}
+                placeholder="0.00"
+                className="h-10 tabular-nums"
+              />
+            </Campo>
+            <Campo label={`Precio final (${moneda})`}>
+              <Input
+                type="number" step={0.01}
+                value={form.precio_final ?? ""}
+                onChange={(e) => setForm({ ...form, precio_final: e.target.value === "" ? null : Number(e.target.value) })}
+                placeholder="0.00"
+                className="h-10 tabular-nums"
+              />
+            </Campo>
+            <Campo label={`Precio 2 und (${moneda})`}>
+              <Input
+                type="number" step={0.01}
+                value={form.precio_2und ?? ""}
+                onChange={(e) => setForm({ ...form, precio_2und: e.target.value === "" ? null : Number(e.target.value) })}
+                placeholder="Combo de 2"
+                className="h-10 tabular-nums"
+              />
+            </Campo>
+            <Campo label={`Precio x3 (${moneda})`}>
+              <Input
+                type="number" step={0.01}
+                value={form.precio_x3 ?? ""}
+                onChange={(e) => setForm({ ...form, precio_x3: e.target.value === "" ? null : Number(e.target.value) })}
+                placeholder="Combo de 3"
+                className="h-10 tabular-nums"
+              />
+            </Campo>
+          </div>
+        </Section>
+
+        {/* SECCIÓN 3 — RECURSOS */}
+        <Section
+          icon={<LinkIcon className="h-4 w-4" />}
+          label="Recursos y links"
+          open={abierto.recursos}
+          onToggle={() => toggle("recursos")}
+        >
+          <div className="space-y-3">
+            <Campo label="Landing page">
+              <Input
+                value={form.link_landing ?? ""}
+                onChange={(e) => setForm({ ...form, link_landing: e.target.value })}
+                placeholder="https://..."
+                className="h-10"
+              />
+            </Campo>
+            <Campo label="Drive (info y assets)">
+              <Input
+                value={form.link_drive ?? ""}
+                onChange={(e) => setForm({ ...form, link_drive: e.target.value })}
+                placeholder="https://drive.google.com/..."
+                className="h-10"
+              />
+            </Campo>
+            <Campo label="Creativos">
+              <Input
+                value={form.link_creativos ?? ""}
+                onChange={(e) => setForm({ ...form, link_creativos: e.target.value })}
+                placeholder="https://..."
+                className="h-10"
+              />
+            </Campo>
+          </div>
+        </Section>
+
+        {/* SECCIÓN 4 — ACTIVACIONES */}
+        <Section
+          icon={<CalendarIcon className="h-4 w-4" />}
+          label="Fechas de activación"
+          open={abierto.activaciones}
+          onToggle={() => toggle("activaciones")}
+        >
+          <div className="grid sm:grid-cols-2 gap-3">
+            <Campo label="Activación TikTok Ads">
+              <Input
+                type="date"
+                value={form.fecha_activacion_tt ?? ""}
+                onChange={(e) => setForm({ ...form, fecha_activacion_tt: e.target.value })}
+                className="h-10"
+              />
+            </Campo>
+            <Campo label="Activación Facebook Ads">
+              <Input
+                type="date"
+                value={form.fecha_activacion_fb ?? ""}
+                onChange={(e) => setForm({ ...form, fecha_activacion_fb: e.target.value })}
+                className="h-10"
+              />
+            </Campo>
+          </div>
+        </Section>
+
+        {/* SECCIÓN 5 — OBSERVACIONES */}
+        <Section
+          icon={<StickyNote className="h-4 w-4" />}
+          label="Observaciones y análisis"
+          open={abierto.observaciones}
+          onToggle={() => toggle("observaciones")}
+        >
+          <textarea
+            rows={4}
+            value={form.observacion ?? ""}
+            onChange={(e) => setForm({ ...form, observacion: e.target.value })}
+            placeholder="Hipótesis de testeo, ángulo principal, público objetivo, recomendaciones, ajustes…"
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm resize-y"
+          />
+        </Section>
+      </div>
+
+      {/* Footer del form */}
+      <div className="flex items-center justify-end gap-2 px-4 py-3 bg-muted/30 border-t">
+        <Button variant="outline" onClick={onCancelar}>Cancelar</Button>
+        <Button onClick={onGuardar} disabled={saving} className="shadow-md shadow-primary/20">
+          <Save className="h-4 w-4 mr-1" /> {saving ? "Guardando…" : (editing ? "Guardar cambios" : "Crear producto")}
+        </Button>
+      </div>
     </div>
   );
 }
 
-function NumField({ label, value, onChange, step = 0.01 }: {
-  label: string; value: number | null | undefined; onChange: (v: number | null) => void; step?: number;
+function Section({ icon, label, open, onToggle, children, required, rightSlot }: {
+  icon: React.ReactNode; label: string; open: boolean; onToggle: () => void;
+  children: React.ReactNode; required?: boolean; rightSlot?: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1">
-      <Label>{label}</Label>
-      <Input
-        type="number" step={step} value={value ?? ""}
-        onChange={(e) => onChange(e.target.value === "" ? null : Number(e.target.value))}
-      />
+    <div>
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/40 transition text-left"
+      >
+        <span className="text-primary shrink-0">{icon}</span>
+        <span className="text-sm font-medium flex-1">{label}{required && <span className="text-primary ml-1">*</span>}</span>
+        {rightSlot}
+        <ChevronDown className={cn("h-4 w-4 text-muted-foreground transition-transform shrink-0", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="px-4 pb-4 pt-1">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
 
-function SelectField({ label, value, onChange, options }: {
-  label: string; value: string; onChange: (v: string) => void;
+function Campo({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      {children}
+    </div>
+  );
+}
+
+function Select({ value, onChange, options }: {
+  value: string; onChange: (v: string) => void;
   options: { value: string; label: string }[];
 }) {
   return (
-    <div className="space-y-1">
-      <Label>{label}</Label>
-      <select
-        className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-      >
-        {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-      </select>
-    </div>
+    <select
+      className="w-full h-10 rounded-md border border-input bg-background px-3 text-sm"
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+    >
+      {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+    </select>
   );
 }
