@@ -24,7 +24,10 @@ export async function POST(request: Request) {
   const { data: miembro } = await supabase
     .from("espacio_miembros").select("rol")
     .eq("espacio_id", espacioId).eq("perfil_id", user.id).maybeSingle();
-  if (!miembro || (miembro.rol !== "owner" && miembro.rol !== "superadmin")) {
+  const { data: perfil } = await supabase
+    .from("perfiles").select("rol").eq("id", user.id).maybeSingle();
+  const esOwner = miembro?.rol === "owner" || perfil?.rol === "superadmin";
+  if (!esOwner) {
     return NextResponse.json({ error: "Solo el owner puede cambiar el código" }, { status: 403 });
   }
 

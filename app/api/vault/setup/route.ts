@@ -20,11 +20,14 @@ export async function POST(request: Request) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "No autenticado" }, { status: 401 });
 
-  // Solo el owner puede crear el código inicial.
+  // Solo el owner del espacio o el superadmin global puede crear el código.
   const { data: miembro } = await supabase
     .from("espacio_miembros").select("rol")
     .eq("espacio_id", espacioId).eq("perfil_id", user.id).maybeSingle();
-  if (!miembro || (miembro.rol !== "owner" && miembro.rol !== "superadmin")) {
+  const { data: perfil } = await supabase
+    .from("perfiles").select("rol").eq("id", user.id).maybeSingle();
+  const esOwner = miembro?.rol === "owner" || perfil?.rol === "superadmin";
+  if (!esOwner) {
     return NextResponse.json({ error: "Solo el owner puede configurar la bóveda" }, { status: 403 });
   }
 

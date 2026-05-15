@@ -18,10 +18,16 @@ export async function getVaultState(espacioId: string): Promise<VaultState> {
   const user = await getCurrentUser();
   if (!user) return { state: "locked", esOwner: false };
 
+  // Rol del miembro dentro del espacio
   const { data: miembro } = await supabase
     .from("espacio_miembros").select("rol")
     .eq("espacio_id", espacioId).eq("perfil_id", user.id).maybeSingle();
-  const esOwner = miembro?.rol === "owner" || miembro?.rol === "superadmin";
+
+  // Rol global (superadmin vive en perfiles, no en espacio_miembros)
+  const { data: perfil } = await supabase
+    .from("perfiles").select("rol").eq("id", user.id).maybeSingle();
+
+  const esOwner = miembro?.rol === "owner" || perfil?.rol === "superadmin";
 
   const { data: esp } = await supabase
     .from("espacios").select("vault_pin_hash").eq("id", espacioId).maybeSingle();
