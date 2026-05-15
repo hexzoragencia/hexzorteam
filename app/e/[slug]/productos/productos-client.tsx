@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -9,9 +9,9 @@ import { Label } from "@/components/ui/label";
 import {
   Package, Plus, Trash2, Pencil, ExternalLink, Save, X as Close, Search,
   Beaker, Lightbulb, ShieldCheck, Trophy, XCircle, PauseCircle,
-  ChevronRight, ChevronDown, Tag, DollarSign, Link as LinkIcon,
-  Calendar as CalendarIcon, StickyNote, ArrowRight, MoreHorizontal,
-  TrendingUp, User as UserIcon, Globe2,
+  ChevronLeft, ChevronRight as ChevronRight2, ChevronDown, Tag, DollarSign,
+  Link as LinkIcon, Calendar as CalendarIcon, StickyNote, ArrowRight,
+  MoreHorizontal, User as UserIcon,
 } from "lucide-react";
 import { cn, formatMoney } from "@/lib/utils";
 
@@ -345,22 +345,126 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
           )}
         </div>
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {filtrados.map(p => (
+        <CarruselProductos
+          productos={filtrados}
+          moneda={moneda}
+          menuAbiertoId={menuAbierto}
+          onAbrirMenu={(id) => setMenuAbierto(id)}
+          responsableNombre={responsableNombre}
+          onEditar={abrirEditar}
+          onBorrar={(p) => borrar(p.id, p.nombre)}
+          onCambiarEstado={cambiarEstado}
+        />
+      )}
+    </div>
+  );
+}
+
+// ============================================================
+// CARRUSEL HORIZONTAL — productos en línea con scroll y flechas
+// ============================================================
+function CarruselProductos({ productos, moneda, menuAbiertoId, onAbrirMenu, responsableNombre, onEditar, onBorrar, onCambiarEstado }: {
+  productos: Producto[];
+  moneda: string;
+  menuAbiertoId: string | null;
+  onAbrirMenu: (id: string | null) => void;
+  responsableNombre: (id: string | null) => string | null;
+  onEditar: (p: Producto) => void;
+  onBorrar: (p: Producto) => void;
+  onCambiarEstado: (id: string, nuevo: Producto["estado"]) => void;
+}) {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [puedeIzq, setPuedeIzq] = useState(false);
+  const [puedeDer, setPuedeDer] = useState(false);
+
+  function actualizarFlechas() {
+    const el = scrollRef.current;
+    if (!el) return;
+    setPuedeIzq(el.scrollLeft > 8);
+    setPuedeDer(el.scrollLeft + el.clientWidth < el.scrollWidth - 8);
+  }
+
+  useEffect(() => {
+    actualizarFlechas();
+    const el = scrollRef.current;
+    if (!el) return;
+    el.addEventListener("scroll", actualizarFlechas, { passive: true });
+    window.addEventListener("resize", actualizarFlechas);
+    return () => {
+      el.removeEventListener("scroll", actualizarFlechas);
+      window.removeEventListener("resize", actualizarFlechas);
+    };
+  }, [productos.length]);
+
+  function scrollPor(dir: 1 | -1) {
+    const el = scrollRef.current;
+    if (!el) return;
+    const card = el.querySelector<HTMLElement>("[data-prod-card]");
+    const cardW = card ? card.offsetWidth + 12 : 320;
+    el.scrollBy({ left: dir * cardW * 2, behavior: "smooth" });
+  }
+
+  return (
+    <div className="relative">
+      {/* Botón izquierda */}
+      {puedeIzq && (
+        <button
+          onClick={() => scrollPor(-1)}
+          className="hidden md:flex absolute -left-3 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-card border border-border shadow-lg items-center justify-center hover:bg-muted hover:border-primary/40 transition"
+          title="Anterior"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </button>
+      )}
+      {/* Botón derecha */}
+      {puedeDer && (
+        <button
+          onClick={() => scrollPor(1)}
+          className="hidden md:flex absolute -right-3 top-1/2 -translate-y-1/2 z-10 h-9 w-9 rounded-full bg-card border border-border shadow-lg items-center justify-center hover:bg-muted hover:border-primary/40 transition"
+          title="Siguiente"
+        >
+          <ChevronRight2 className="h-4 w-4" />
+        </button>
+      )}
+
+      {/* Pista de scroll horizontal */}
+      <div
+        ref={scrollRef}
+        className="flex gap-3 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-3 -mx-1 px-1 carrusel-productos"
+      >
+        {productos.map(p => (
+          <div
+            key={p.id}
+            data-prod-card
+            className="snap-start shrink-0 w-[320px] sm:w-[340px]"
+          >
             <ProductoCard
-              key={p.id}
               p={p}
               moneda={moneda}
               responsable={responsableNombre(p.responsable_id)}
-              menuAbierto={menuAbierto === p.id}
-              onAbrirMenu={(open) => setMenuAbierto(open ? p.id : null)}
-              onEditar={() => abrirEditar(p)}
-              onBorrar={() => borrar(p.id, p.nombre)}
-              onCambiarEstado={(nuevo) => cambiarEstado(p.id, nuevo)}
+              menuAbierto={menuAbiertoId === p.id}
+              onAbrirMenu={(open) => onAbrirMenu(open ? p.id : null)}
+              onEditar={() => onEditar(p)}
+              onBorrar={() => onBorrar(p)}
+              onCambiarEstado={(nuevo) => onCambiarEstado(p.id, nuevo)}
             />
-          ))}
+          </div>
+        ))}
+      </div>
+
+      {/* Indicador de cuántos hay */}
+      {productos.length > 3 && (
+        <div className="text-[10px] text-muted-foreground text-right mt-1">
+          Desliza para ver los {productos.length} productos →
         </div>
       )}
+
+      <style jsx global>{`
+        .carrusel-productos::-webkit-scrollbar { height: 6px; }
+        .carrusel-productos::-webkit-scrollbar-track { background: transparent; }
+        .carrusel-productos::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 3px; }
+        .carrusel-productos::-webkit-scrollbar-thumb:hover { background: hsl(var(--primary) / 0.3); }
+      `}</style>
     </div>
   );
 }
