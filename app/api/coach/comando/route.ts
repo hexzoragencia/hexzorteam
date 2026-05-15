@@ -259,6 +259,66 @@ Falta el link del landing y el de creativos. ¿Lo creo en 'nuevo'?"
 Si user dice "sí" → crear_producto con esos datos exactos.
 `;
 
+// ============================================================
+// Prompt para sección PROYECCIÓN — registra ventas y metas
+// ============================================================
+const SYSTEM_PROYECCION = `
+=========================================================
+MODO ACTUAL: ESPECIALISTA EN MÉTRICAS Y PROYECCIÓN
+=========================================================
+Estás en la sección "Proyección & Metas". Tu trabajo es ayudar al usuario a
+registrar sus ventas diarias y a ajustar sus metas (mensuales, semanales, diarias,
+ganancia esperada, gastos fijos, utilidad por pedido).
+
+# TOOLS DISPONIBLES
+- registrar_venta_dia(fecha, ventas_dia, productos_montados, observacion)
+- listar_proyeccion (resumen + semáforo)
+- actualizar_metas (cambiar cualquier meta — el sistema auto-deriva las relacionadas)
+
+# 📸 LECTURA DE CAPTURAS — Meta Ads / TikTok Ads / Shopify / Dropi
+Si el usuario adjunta una captura del dashboard de cualquier plataforma:
+1. Identifica la plataforma (Meta Ads Manager, TikTok Ads Manager, Shopify Admin, Dropi).
+2. Busca: número de pedidos / ventas / compras del día (a veces dice "Compras", "Pedidos",
+   "Orders", "Sales", "Compras únicas", "Conversiones").
+3. Busca la FECHA visible (si la captura es del rango "Hoy", usa fecha = hoy).
+4. Si ves "monté X productos nuevos" o "creé X nuevos creativos" detéctalo aparte.
+5. Llama registrar_venta_dia con la fecha exacta y el número exacto.
+
+REGLAS:
+- NUNCA inventes números. Si en la captura no se ve claro, pregunta con conversar.
+- Si la captura muestra el TOTAL de varios días, NO los registres como un solo día —
+  pregunta al usuario "esta captura es del rango X a Y, ¿lo quieres todo sumado en hoy
+  o lo dividimos?".
+- Si la cifra es ambigua (ej. 234 podría ser pedidos o clicks), pregunta primero.
+
+# 🗣️ ENTRADA POR AUDIO O TEXTO
+El usuario te puede decir:
+- "hoy hice 47 ventas" → registrar_venta_dia(ventas_dia: 47)
+- "ayer fueron 32 pedidos" → registrar_venta_dia(fecha: ayer, ventas_dia: 32)
+- "el lunes 12 vendí 50 y monté 3 productos" → registrar_venta_dia con fecha + ambos
+- "anota que hice 89 ventas el 10 de mayo y monté 2 productos" → registrar_venta_dia
+
+# 🎯 AJUSTE DE METAS POR LENGUAJE NATURAL
+El usuario te puede decir:
+- "mi meta es vender 2000 al mes" → actualizar_metas(meta_ventas_mensuales: 2000)
+- "quiero ganar 30 millones" → actualizar_metas(meta_ganancia: 30000000)
+- "mi utilidad por pedido es 25k" → actualizar_metas(utilidad_por_pedido: 25000)
+- "los gastos fijos son 8M" → actualizar_metas(meta_gastos_fijos: 8000000)
+- "la tasa de confirmación es 75%" → actualizar_metas(pct_confirmacion: 0.75)
+- "mi meta de hoy es 60 ventas" → actualizar_metas(meta_ventas_diarias: 60)
+
+Si actualiza meta mensual o diaria, el sistema deriva las demás automáticamente.
+
+# 💬 PREGUNTAS DEL USUARIO
+- "cómo voy hoy" / "voy bien?" / "cumplo?" → listar_proyeccion
+- "qué me falta para la meta del mes" → listar_proyeccion + cálculo en respuesta
+
+# TONO
+Mismo amigo colombiano cercano, ahora analista de negocio. Frases cortas.
+Si va atrasado, lo dices claro pero motivador: "Vas en 60% del mes, te faltan
+640 pedidos en 10 días — necesitas 64/día. ¡Manos a la obra!"
+`;
+
 
 const tools: any[] = [
   {
@@ -543,6 +603,56 @@ const tools: any[] = [
     },
   },
   // ============================================================
+  // PROYECCIÓN & METAS (registro diario + metas)
+  // ============================================================
+  {
+    type: "function",
+    function: {
+      name: "registrar_venta_dia",
+      description: "Registra las ventas y productos nuevos de un día específico. Usa esta tool cuando el user dice cuántas ventas hizo (texto, audio o captura de Meta/TikTok/Shopify). Si la fecha ya existe, actualiza ese registro. Si no se da fecha explícita, usa hoy.",
+      parameters: {
+        type: "object",
+        properties: {
+          fecha: { type: "string", description: "YYYY-MM-DD. Default: hoy" },
+          ventas_dia: { type: "integer", description: "Cantidad de ventas/pedidos del día" },
+          productos_montados: { type: "integer", description: "Productos nuevos creados/montados ese día. Default 0 si no se menciona" },
+          observacion: { type: "string", description: "Nota libre, opcional" },
+        },
+        required: ["ventas_dia"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "listar_proyeccion",
+      description: "Muestra el resumen de proyección actual: metas, semáforo de cumplimiento (hoy/semana/mes), ganancia esperada vs real, gastos cubiertos.",
+      parameters: { type: "object", properties: {} },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "actualizar_metas",
+      description: "Actualiza una o más metas. Si el user dice 'mi meta de ventas mensual es 2000', usa meta_ventas_mensuales=2000 y deja el resto solo si lo menciona. Si dice 'quiero ganar 30M' usa meta_ganancia. Si dice 'mi utilidad por pedido es 25k' usa utilidad_por_pedido.",
+      parameters: {
+        type: "object",
+        properties: {
+          meta_ventas_mensuales: { type: "integer" },
+          meta_ventas_semanales: { type: "integer" },
+          meta_ventas_diarias: { type: "integer" },
+          meta_ganancia: { type: "number", description: "Cuánto quiere ganar al mes (bruto)" },
+          meta_gastos_fijos: { type: "number" },
+          utilidad_por_pedido: { type: "number" },
+          pct_confirmacion: { type: "number", description: "0-1, ej 0.8 = 80%" },
+          pct_entrega: { type: "number", description: "0-1" },
+          meta_productos_testeo_mes: { type: "integer" },
+        },
+      },
+    },
+  },
+
+  // ============================================================
   // TAREAS EMPRESARIALES (módulo del equipo)
   // ============================================================
   {
@@ -675,6 +785,9 @@ export async function POST(req: Request) {
     const systemMessages: any[] = [{ role: "system", content: SYSTEM }];
     if (tipoEspacio === "empresarial" && seccion === "productos") {
       systemMessages.push({ role: "system", content: SYSTEM_PRODUCTOS });
+    }
+    if (tipoEspacio === "empresarial" && seccion === "proyeccion") {
+      systemMessages.push({ role: "system", content: SYSTEM_PROYECCION });
     }
     systemMessages.push({
       role: "system",
@@ -1169,6 +1282,81 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
     const { error } = await sb.from("emp_productos").update(updates).eq("id", prod.id);
     if (error) throw new Error(error.message);
     return `🔄 Moví "${prod.nombre}" de ${prod.estado} → ${args.nuevo_estado}.`;
+  }
+
+  // ============================================================
+  // PROYECCIÓN & METAS — handlers
+  // ============================================================
+  if (fn === "registrar_venta_dia") {
+    const fecha = args.fecha || hoyIso();
+    const ventas = Math.max(0, Math.floor(Number(args.ventas_dia) || 0));
+    const productos = Math.max(0, Math.floor(Number(args.productos_montados) || 0));
+    const payload: any = {
+      espacio_id: espacioId,
+      fecha,
+      ventas_dia: ventas,
+      productos_montados: productos,
+    };
+    if (args.observacion) payload.observacion = args.observacion;
+    const { error } = await sb.from("emp_metas_tracking")
+      .upsert(payload, { onConflict: "espacio_id,fecha" });
+    if (error) throw new Error(error.message);
+    const extras = productos > 0 ? ` y ${productos} producto${productos === 1 ? "" : "s"} montado${productos === 1 ? "" : "s"}` : "";
+    return `📈 Registré ${ventas} venta${ventas === 1 ? "" : "s"}${extras} para ${fecha}.`;
+  }
+
+  if (fn === "listar_proyeccion") {
+    const hoy = hoyIso();
+    const lunes = new Date(hoy + "T00:00:00");
+    lunes.setDate(lunes.getDate() - ((lunes.getDay() + 6) % 7));
+    const lunesIso = lunes.toISOString().slice(0, 10);
+    const inicioMes = hoy.slice(0, 7) + "-01";
+
+    const [{ data: m }, { data: tracking }] = await Promise.all([
+      sb.from("emp_metas").select("*").eq("espacio_id", espacioId).maybeSingle(),
+      sb.from("emp_metas_tracking").select("fecha, ventas_dia, productos_montados")
+        .eq("espacio_id", espacioId).gte("fecha", inicioMes),
+    ]);
+    if (!m) return "Aún no configuras metas. Dime cuántas ventas quieres al mes y arrancamos.";
+
+    const tHoy = (tracking ?? []).find((t: any) => t.fecha === hoy);
+    const ventasHoy = tHoy?.ventas_dia ?? 0;
+    const ventasSem = (tracking ?? []).filter((t: any) => t.fecha >= lunesIso).reduce((s: number, t: any) => s + t.ventas_dia, 0);
+    const ventasMes = (tracking ?? []).reduce((s: number, t: any) => s + t.ventas_dia, 0);
+
+    const metaD = (m as any).meta_ventas_diarias ?? 0;
+    const metaS = (m as any).meta_ventas_semanales ?? 0;
+    const metaM = (m as any).meta_ventas_mensuales ?? 0;
+    const sem = (real: number, meta: number) => meta === 0 ? "—" : Math.round((real / meta) * 100) + "%";
+
+    return `📊 Proyección actual:
+• Hoy:    ${ventasHoy}/${metaD} (${sem(ventasHoy, metaD)})
+• Semana: ${ventasSem}/${metaS} (${sem(ventasSem, metaS)})
+• Mes:    ${ventasMes}/${metaM} (${sem(ventasMes, metaM)})
+Utilidad por pedido: $${Number((m as any).utilidad_por_pedido ?? 0).toLocaleString("es-CO")}.`;
+  }
+
+  if (fn === "actualizar_metas") {
+    const updates: any = {};
+    const campos = [
+      "meta_ventas_mensuales", "meta_ventas_semanales", "meta_ventas_diarias",
+      "meta_ganancia", "meta_gastos_fijos", "utilidad_por_pedido",
+      "pct_confirmacion", "pct_entrega", "meta_productos_testeo_mes",
+    ];
+    for (const c of campos) if (args[c] !== undefined && args[c] !== null) updates[c] = args[c];
+    if (Object.keys(updates).length === 0) return "No me diste qué meta actualizar.";
+
+    // Auto-derivar: si mandan meta_mensual, calculamos día/semana también
+    if (updates.meta_ventas_mensuales) {
+      if (updates.meta_ventas_semanales === undefined) updates.meta_ventas_semanales = Math.round(updates.meta_ventas_mensuales / (30 / 7));
+      if (updates.meta_ventas_diarias === undefined)   updates.meta_ventas_diarias = Math.round(updates.meta_ventas_mensuales / 30);
+    }
+
+    updates.espacio_id = espacioId;
+    const { error } = await sb.from("emp_metas").upsert(updates, { onConflict: "espacio_id" });
+    if (error) throw new Error(error.message);
+    const cambios = Object.keys(updates).filter(k => k !== "espacio_id").join(", ");
+    return `🎯 Metas actualizadas (${cambios}).`;
   }
 
   // ============================================================
