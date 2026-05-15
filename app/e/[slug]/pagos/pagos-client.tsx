@@ -36,9 +36,11 @@ const FORM_DEFAULT: { nombre: string; monto: number | ""; dia_pago: number | "";
 
 const DIAS = Array.from({ length: 31 }, (_, i) => i + 1);
 
-function diasRestantes(fecha: string): number {
+function diasRestantes(fecha: string | null | undefined): number {
+  if (!fecha) return 0;
   const hoy = new Date(); hoy.setHours(0, 0, 0, 0);
   const venc = new Date(fecha + "T00:00:00");
+  if (isNaN(venc.getTime())) return 0;
   return Math.round((venc.getTime() - hoy.getTime()) / 86400000);
 }
 

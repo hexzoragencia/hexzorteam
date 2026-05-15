@@ -12,7 +12,10 @@ export function formatMoney(value: number, currency = "COP") {
   const symbol = SYMBOLS[currency] ?? "$";
   const locale = LOCALES[currency] ?? "es-CO";
   const fixed = currency === "EUR" || currency === "USD" ? 2 : 0;
-  return `${symbol}${value.toLocaleString(locale, { maximumFractionDigits: fixed, minimumFractionDigits: fixed })}`;
+  // Nunca reventar por un valor null/undefined/NaN proveniente de la BD.
+  const n = Number(value);
+  const safe = Number.isFinite(n) ? n : 0;
+  return `${symbol}${safe.toLocaleString(locale, { maximumFractionDigits: fixed, minimumFractionDigits: fixed })}`;
 }
 
 export function formatPct(value: number) {
