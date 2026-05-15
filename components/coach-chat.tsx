@@ -25,7 +25,10 @@ interface Mensaje {
   ts: number;
 }
 
-const STORAGE_KEY = "coach-chat-history";
+// Cada espacio tiene su propio historial separado.
+// Sin espacio (vista global) usa una key aparte.
+const getStorageKey = (espacioId?: string) =>
+  espacioId ? `coach-chat-history-${espacioId}` : "coach-chat-history-global";
 
 const EJEMPLOS = [
   "gasté 50k en pauta",
@@ -122,23 +125,34 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
     }
   }
 
-  // Hidratar historial
+  // Hidratar historial — se re-ejecuta si cambia de espacio
   useEffect(() => {
+    setHydrated(false);
     try {
-      const raw = localStorage.getItem(STORAGE_KEY);
+      const raw = localStorage.getItem(getStorageKey(espacioId));
       if (raw) {
         const arr = JSON.parse(raw) as Mensaje[];
-        if (Array.isArray(arr) && arr.length > 0) setMensajes(arr);
+        if (Array.isArray(arr) && arr.length > 0) {
+          setMensajes(arr);
+        } else {
+          setMensajes([SALUDO_INICIAL]);
+        }
+      } else {
+        setMensajes([SALUDO_INICIAL]);
       }
-    } catch { /* ignore */ }
+    } catch {
+      setMensajes([SALUDO_INICIAL]);
+    }
     setHydrated(true);
-  }, []);
+  }, [espacioId]);
 
-  // Persistir
+  // Persistir — guarda en la key del espacio actual
   useEffect(() => {
     if (!hydrated) return;
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(mensajes.slice(-50))); } catch { /* ignore */ }
-  }, [mensajes, hydrated]);
+    try {
+      localStorage.setItem(getStorageKey(espacioId), JSON.stringify(mensajes.slice(-50)));
+    } catch { /* ignore */ }
+  }, [mensajes, hydrated, espacioId]);
 
   // Auto-scroll al último
   useEffect(() => {
