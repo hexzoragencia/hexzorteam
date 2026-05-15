@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import {
   Package, Plus, Trash2, Pencil, ExternalLink, Save, X as Close, Search,
-  Beaker, Lightbulb, ShieldCheck, Trophy, XCircle, PauseCircle,
+  Beaker, Lightbulb, ShieldCheck, Trophy, XCircle, PauseCircle, Sparkles,
   ChevronLeft, ChevronRight as ChevronRight2, ChevronDown, Tag, DollarSign,
   Link as LinkIcon, Calendar as CalendarIcon, StickyNote, ArrowRight,
   MoreHorizontal, User as UserIcon,
@@ -22,12 +22,13 @@ type Producto = {
   precio_2und: number | null; precio_x3: number | null; stock: number | null;
   link_landing: string | null; link_drive: string | null; link_creativos: string | null;
   plataforma: string | null; tipo: string | null;
-  estado: "testeo" | "aprendizaje" | "validado" | "winner" | "descartado" | "apagado";
+  estado: "nuevo" | "testeo" | "aprendizaje" | "validado" | "winner" | "descartado" | "apagado";
   fecha_activacion_tt: string | null; fecha_activacion_fb: string | null;
   observacion: string | null; created_at: string;
 };
 
 const ESTADOS = [
+  { value: "nuevo",       label: "Nuevo",        short: "Nuevo",    icon: Sparkles,     dot: "bg-violet-500",  text: "text-violet-600 dark:text-violet-400", bar: "bg-violet-500",  bg: "bg-violet-500/10",  border: "border-violet-500/30" },
   { value: "testeo",      label: "Testeo",       short: "Testeo",   icon: Beaker,       dot: "bg-amber-500",   text: "text-amber-600 dark:text-amber-400",  bar: "bg-amber-500",   bg: "bg-amber-500/10",   border: "border-amber-500/30" },
   { value: "aprendizaje", label: "Aprendizaje",  short: "Aprende",  icon: Lightbulb,    dot: "bg-blue-500",    text: "text-blue-600 dark:text-blue-400",    bar: "bg-blue-500",    bg: "bg-blue-500/10",    border: "border-blue-500/30" },
   { value: "validado",    label: "Validado",     short: "Validado", icon: ShieldCheck,  dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
@@ -36,7 +37,7 @@ const ESTADOS = [
   { value: "descartado",  label: "Descartado",   short: "Descart.", icon: XCircle,      dot: "bg-rose-500",    text: "text-rose-600 dark:text-rose-400",    bar: "bg-rose-500",    bg: "bg-rose-500/10",    border: "border-rose-500/30" },
 ] as const;
 
-const ESTADOS_FLUJO = ["testeo", "aprendizaje", "validado", "winner"] as const;
+const ESTADOS_FLUJO = ["nuevo", "testeo", "aprendizaje", "validado", "winner"] as const;
 const ESTADOS_INACTIVOS = ["apagado", "descartado"] as const;
 
 const PAISES = [
@@ -233,8 +234,8 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
           )}
         </div>
 
-        {/* Flujo activo: Testeo → Aprendizaje → Validado → Winner */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 lg:gap-0 lg:items-stretch">
+        {/* Flujo activo: Nuevo → Testeo → Aprendizaje → Validado → Winner */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 lg:gap-0 lg:items-stretch">
           {ESTADOS_FLUJO.map((v, idx) => {
             const e = getEstado(v);
             const s = stats[v];

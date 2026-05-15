@@ -357,7 +357,7 @@ const tools: any[] = [
       parameters: {
         type: "object",
         properties: {
-          estado: { type: "string", enum: ["testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Filtrar por estado, opcional" },
+          estado: { type: "string", enum: ["nuevo", "testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Filtrar por estado, opcional" },
           q: { type: "string", description: "Búsqueda por nombre o proveedor, opcional" },
         },
       },
@@ -384,7 +384,7 @@ const tools: any[] = [
           link_creativos: { type: "string" },
           plataforma: { type: "string", enum: ["TT", "FB", "TT+FB", "Otro"] },
           tipo: { type: "string", enum: ["dropshipping", "importacion", "local", "otro"] },
-          estado: { type: "string", enum: ["testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Default testeo si no se especifica" },
+          estado: { type: "string", enum: ["nuevo", "testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Default testeo si no se especifica" },
           observacion: { type: "string", description: "Observación estratégica, hipótesis, ángulo, público objetivo, recomendaciones — todo lo no estructurado" },
         },
         required: ["nombre"],
@@ -426,7 +426,7 @@ const tools: any[] = [
         type: "object",
         properties: {
           texto_busqueda: { type: "string", description: "Nombre o palabra clave del producto" },
-          nuevo_estado: { type: "string", enum: ["testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"] },
+          nuevo_estado: { type: "string", enum: ["nuevo", "testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"] },
           motivo: { type: "string", description: "Breve razón del cambio (se añade a observación)" },
         },
         required: ["texto_busqueda", "nuevo_estado"],
