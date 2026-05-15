@@ -345,16 +345,21 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
           )}
         </div>
       ) : (
-        <CarruselProductos
-          productos={filtrados}
-          moneda={moneda}
-          menuAbiertoId={menuAbierto}
-          onAbrirMenu={(id) => setMenuAbierto(id)}
-          responsableNombre={responsableNombre}
-          onEditar={abrirEditar}
-          onBorrar={(p) => borrar(p.id, p.nombre)}
-          onCambiarEstado={cambiarEstado}
-        />
+        <div className="space-y-2">
+          {filtrados.map(p => (
+            <ProductoFila
+              key={p.id}
+              p={p}
+              moneda={moneda}
+              responsable={responsableNombre(p.responsable_id)}
+              menuAbierto={menuAbierto === p.id}
+              onAbrirMenu={(open) => setMenuAbierto(open ? p.id : null)}
+              onEditar={() => abrirEditar(p)}
+              onBorrar={() => borrar(p.id, p.nombre)}
+              onCambiarEstado={(nuevo) => cambiarEstado(p.id, nuevo)}
+            />
+          ))}
+        </div>
       )}
     </div>
   );
@@ -603,6 +608,150 @@ function ProductoCard({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
             <button onClick={onBorrar} title="Borrar" className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
               <Trash2 className="h-3.5 w-3.5" />
             </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================
+// FILA DE PRODUCTO — layout horizontal full-width tipo lista premium
+// ============================================================
+function ProductoFila({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEditar, onBorrar, onCambiarEstado }: {
+  p: Producto; moneda: string; responsable: string | null;
+  menuAbierto: boolean; onAbrirMenu: (open: boolean) => void;
+  onEditar: () => void; onBorrar: () => void;
+  onCambiarEstado: (n: Producto["estado"]) => void;
+}) {
+  const e = getEstado(p.estado);
+  const Icon = e.icon;
+  const pais = PAISES.find(c => c.value === p.pais);
+  const margen = calcMargen(p.precio_final, p.costo_proveedor);
+  const tieneLinks = !!(p.link_landing || p.link_drive || p.link_creativos);
+
+  return (
+    <div className="group relative rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all flex items-stretch">
+      {/* Banda lateral izquierda con color del estado */}
+      <div className={cn("w-1 shrink-0", e.bar)}></div>
+
+      <div className="flex-1 min-w-0 p-3.5 flex flex-col lg:flex-row lg:items-center gap-3">
+
+        {/* Nombre + estado */}
+        <div className="min-w-0 lg:basis-[22%] lg:max-w-[22%]">
+          <h3 className="font-semibold text-[15px] leading-tight truncate">{p.nombre}</h3>
+          <div className={cn("inline-flex items-center gap-1 mt-1 text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded", e.bg, e.text)}>
+            <Icon className="h-2.5 w-2.5" />
+            {e.label}
+          </div>
+        </div>
+
+        {/* Responsable + país + plataforma */}
+        <div className="flex items-center gap-2.5 text-xs text-muted-foreground min-w-0 lg:basis-[24%] lg:max-w-[24%]">
+          {responsable ? (
+            <span className="inline-flex items-center gap-1.5 min-w-0">
+              <span className="w-6 h-6 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center shrink-0">
+                {iniciales(responsable)}
+              </span>
+              <span className="truncate">{responsable}</span>
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-muted-foreground/60">
+              <UserIcon className="h-3 w-3" /> Sin asignar
+            </span>
+          )}
+          {pais && (
+            <span className="inline-flex items-center gap-1 shrink-0">
+              <span className="text-sm">{pais.flag}</span>
+              <span>{pais.value}</span>
+            </span>
+          )}
+          {p.plataforma && (
+            <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded bg-muted shrink-0">
+              {p.plataforma}
+            </span>
+          )}
+        </div>
+
+        {/* Costo / Precio / Margen */}
+        <div className="grid grid-cols-3 gap-1 rounded-lg bg-muted/40 p-2 lg:basis-[30%] lg:max-w-[30%] min-w-0">
+          <div className="text-center min-w-0">
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Costo</div>
+            <div className="text-xs font-semibold tabular-nums truncate">
+              {p.costo_proveedor ? formatMoney(p.costo_proveedor, moneda) : "—"}
+            </div>
+          </div>
+          <div className="text-center border-x border-border/50 min-w-0">
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Precio</div>
+            <div className="text-xs font-semibold tabular-nums truncate">
+              {p.precio_final ? formatMoney(p.precio_final, moneda) : "—"}
+            </div>
+          </div>
+          <div className="text-center min-w-0">
+            <div className="text-[9px] uppercase tracking-wider text-muted-foreground">Margen</div>
+            <div className={cn(
+              "text-xs font-bold tabular-nums",
+              margen === null ? "text-muted-foreground" :
+              margen >= 60 ? "text-emerald-600 dark:text-emerald-400" :
+              margen >= 40 ? "text-amber-600 dark:text-amber-400" :
+              "text-rose-600 dark:text-rose-400"
+            )}>
+              {margen !== null ? `${margen}%` : "—"}
+            </div>
+          </div>
+        </div>
+
+        {/* Links */}
+        <div className="flex items-center gap-1.5 lg:basis-[14%] lg:max-w-[14%] flex-wrap">
+          {p.link_landing && <LinkIcon2 href={p.link_landing} label="Land" color="bg-blue-500/15 text-blue-600 dark:text-blue-400" />}
+          {p.link_drive && <LinkIcon2 href={p.link_drive} label="Drive" color="bg-amber-500/15 text-amber-600 dark:text-amber-400" />}
+          {p.link_creativos && <LinkIcon2 href={p.link_creativos} label="Creat" color="bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" />}
+          {!tieneLinks && <span className="text-[10px] text-muted-foreground/50 italic">Sin links</span>}
+        </div>
+
+        {/* Acciones */}
+        <div className="flex items-center gap-0.5 shrink-0 ml-auto lg:ml-0">
+          <button
+            onClick={onEditar}
+            title="Editar"
+            className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground transition"
+          >
+            <Pencil className="h-3.5 w-3.5" />
+          </button>
+          <button
+            onClick={onBorrar}
+            title="Borrar"
+            className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+          </button>
+          <div className="relative" onClick={(ev) => ev.stopPropagation()}>
+            <button
+              onClick={() => onAbrirMenu(!menuAbierto)}
+              className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground"
+              title="Cambiar estado"
+            >
+              <MoreHorizontal className="h-4 w-4" />
+            </button>
+            {menuAbierto && (
+              <div className="absolute right-0 top-9 z-20 w-48 rounded-lg border border-border bg-card shadow-xl overflow-hidden">
+                <div className="px-3 py-2 text-[10px] uppercase tracking-wider font-semibold text-muted-foreground border-b border-border/50">
+                  Cambiar estado a…
+                </div>
+                {ESTADOS.map(es => (
+                  <button
+                    key={es.value}
+                    onClick={() => onCambiarEstado(es.value as Producto["estado"])}
+                    disabled={es.value === p.estado}
+                    className="w-full px-3 py-1.5 text-left text-sm flex items-center gap-2 hover:bg-muted transition disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    <span className={cn("w-1.5 h-1.5 rounded-full", es.dot)}></span>
+                    <span className={cn(es.value === p.estado && "font-semibold")}>{es.label}</span>
+                    {es.value === p.estado && <span className="ml-auto text-[10px] text-muted-foreground">actual</span>}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>
