@@ -59,6 +59,8 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   const [grabando, setGrabando] = useState(false);
   const [transcribiendo, setTranscribiendo] = useState(false);
   const [imagenAdjunta, setImagenAdjunta] = useState<{ b64: string; preview: string } | null>(null);
+  const [dragActivo, setDragActivo] = useState(false);
+  const dragCounterRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Drag & drop libre para el muñeco cuando está cerrado
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
@@ -237,14 +239,48 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
     });
   }
 
+  async function procesarImagen(file: File): Promise<boolean> {
+    if (!file.type.startsWith("image/")) { alert("Sube una imagen (PNG, JPG, etc)."); return false; }
+    if (file.size > 8 * 1024 * 1024) { alert("Imagen muy grande (>8 MB). Comprime y reintenta."); return false; }
+    const dataUrl = await fileToDataUrl(file);
+    setImagenAdjunta({ b64: dataUrl, preview: dataUrl });
+    return true;
+  }
+
   async function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) { alert("Sube una imagen (PNG, JPG, etc)."); return; }
-    if (file.size > 8 * 1024 * 1024) { alert("Imagen muy grande (>8 MB). Comprime y reintenta."); return; }
-    const dataUrl = await fileToDataUrl(file);
-    setImagenAdjunta({ b64: dataUrl, preview: dataUrl });
+    await procesarImagen(file);
     if (fileInputRef.current) fileInputRef.current.value = "";
+  }
+
+  // ===== DRAG & DROP de imágenes al panel =====
+  function onDragEnter(e: React.DragEvent) {
+    e.preventDefault(); e.stopPropagation();
+    if (e.dataTransfer?.types?.includes("Files")) {
+      dragCounterRef.current += 1;
+      setDragActivo(true);
+    }
+  }
+  function onDragOver(e: React.DragEvent) {
+    e.preventDefault(); e.stopPropagation();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "copy";
+  }
+  function onDragLeave(e: React.DragEvent) {
+    e.preventDefault(); e.stopPropagation();
+    dragCounterRef.current -= 1;
+    if (dragCounterRef.current <= 0) {
+      dragCounterRef.current = 0;
+      setDragActivo(false);
+    }
+  }
+  async function onDrop(e: React.DragEvent) {
+    e.preventDefault(); e.stopPropagation();
+    dragCounterRef.current = 0;
+    setDragActivo(false);
+    const file = e.dataTransfer?.files?.[0];
+    if (!file) return;
+    await procesarImagen(file);
   }
 
   async function enviar(textoForzado?: string) {
@@ -357,7 +393,26 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
 
   // ===== PANEL ABIERTO =====
   return (
-    <div className={cn("fixed z-50 w-[360px] max-w-[calc(100vw-2rem)] h-[560px] max-h-[calc(100vh-8rem)] flex flex-col rounded-2xl border-2 border-primary/40 bg-card shadow-2xl overflow-hidden brand-glow", cornerClasses(corner, true))}>
+    <div
+      onDragEnter={onDragEnter}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      className={cn(
+        "fixed z-50 w-[360px] max-w-[calc(100vw-2rem)] h-[560px] max-h-[calc(100vh-8rem)] flex flex-col rounded-2xl border-2 bg-card shadow-2xl overflow-hidden brand-glow transition-colors",
+        dragActivo ? "border-primary border-dashed" : "border-primary/40",
+        cornerClasses(corner, true),
+      )}
+    >
+      {/* Overlay de drag & drop — aparece cuando arrastras una imagen */}
+      {dragActivo && (
+        <div className="absolute inset-0 z-40 bg-primary/20 backdrop-blur-sm flex flex-col items-center justify-center pointer-events-none border-2 border-dashed border-primary rounded-2xl">
+          <ImagePlus className="h-12 w-12 text-primary mb-2" />
+          <div className="text-sm font-semibold text-primary">Suelta la imagen aquí</div>
+          <div className="text-[11px] text-primary/80 mt-0.5">La analizaré para ti</div>
+        </div>
+      )}
+
       {/* HEADER */}
       <div className="flex items-center gap-3 p-3 border-b bg-gradient-to-r from-primary/10 to-transparent">
         <div className="relative h-10 w-10 rounded-full overflow-hidden border-2 border-primary shrink-0">
