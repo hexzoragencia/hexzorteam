@@ -25,6 +25,13 @@ export interface CalcResult {
   precio_venta: number;
   precio_comparacion: number;
   margen_pct: number;
+  // Ofertas de cantidad (combos x2 / x3)
+  precio_2und: number;
+  utilidad_2und: number;
+  margen_2und: number;
+  precio_3und: number;
+  utilidad_3und: number;
+  margen_3und: number;
 }
 
 // ============================================================

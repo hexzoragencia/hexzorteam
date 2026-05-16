@@ -60,6 +60,38 @@ export function CalculadoraClient({ paises }: { paises: CountryConfig[] }) {
             <BigStat title="Precio comparación" value={formatMoney(result.precio_comparacion, cfg.moneda)} subtitle="Para landing/copy" />
           </div>
 
+          {/* OFERTAS DE CANTIDAD — combos x2 / x3 */}
+          <Card className="border-primary/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">📦 Ofertas de cantidad (combos)</CardTitle>
+              <p className="text-xs text-muted-foreground">
+                Cada unidad extra suma solo el costo del producto + tu utilidad. Mismo envío, misma pauta → más margen.
+              </p>
+            </CardHeader>
+            <CardContent className="grid gap-3 sm:grid-cols-3">
+              <ComboBox
+                titulo="1 unidad"
+                precio={formatMoney(result.precio_venta, cfg.moneda)}
+                utilidad={formatMoney(result.utilidad, cfg.moneda)}
+                margen={formatPct(result.margen_pct)}
+              />
+              <ComboBox
+                titulo="2 unidades"
+                precio={formatMoney(result.precio_2und, cfg.moneda)}
+                utilidad={formatMoney(result.utilidad_2und, cfg.moneda)}
+                margen={formatPct(result.margen_2und)}
+                destacado
+              />
+              <ComboBox
+                titulo="3 unidades"
+                precio={formatMoney(result.precio_3und, cfg.moneda)}
+                utilidad={formatMoney(result.utilidad_3und, cfg.moneda)}
+                margen={formatPct(result.margen_3und)}
+                destacado
+              />
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader><CardTitle>Desglose completo</CardTitle></CardHeader>
             <CardContent className="space-y-1 text-sm">
@@ -100,6 +132,27 @@ function BigStat({ title, value, subtitle, highlight }: { title: string; value: 
         {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
       </CardContent>
     </Card>
+  );
+}
+
+function ComboBox({ titulo, precio, utilidad, margen, destacado }: {
+  titulo: string; precio: string; utilidad: string; margen: string; destacado?: boolean;
+}) {
+  return (
+    <div className={`rounded-xl border p-4 text-center ${destacado ? "border-primary/50 bg-primary/5" : "border-border bg-muted/20"}`}>
+      <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">{titulo}</div>
+      <div className={`text-2xl font-bold tabular-nums mt-1 ${destacado ? "text-primary" : ""}`}>{precio}</div>
+      <div className="mt-2 pt-2 border-t border-border/50 text-xs space-y-0.5">
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Utilidad</span>
+          <span className="font-medium tabular-nums text-success">{utilidad}</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-muted-foreground">Margen</span>
+          <span className="font-medium tabular-nums">{margen}</span>
+        </div>
+      </div>
+    </div>
   );
 }
 

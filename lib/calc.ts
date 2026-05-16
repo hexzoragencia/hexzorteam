@@ -16,6 +16,20 @@ export function calcularPrecio(
   const precioComparacion = precioVenta * (1 + cfg.pct_comparacion);
   const margenPct = precioVenta > 0 ? utilidad / precioVenta : 0;
 
+  // ===== OFERTAS DE CANTIDAD (combos x2 / x3) =====
+  // Regla del Excel OPTIMUX:
+  //   Precio 2und = Precio 1und + Utilidad objetivo + Costo del producto
+  //   Precio 3und = Precio 2und + Utilidad objetivo + Costo del producto
+  // Cada unidad extra solo añade el costo del producto + la utilidad que se
+  // quiere ganar por esa unidad. NO suma flete/CPA/admin porque es el MISMO
+  // envío y la MISMA venta (1 sola pauta). Redondeado a la centena.
+  const redondearCentena = (n: number) => Math.round(n / 100) * 100;
+
+  const precio2und = redondearCentena(precioVenta + utilidad + precioProveedor);
+  const precio3und = redondearCentena(precio2und + utilidad + precioProveedor);
+  const utilidad2und = utilidad * 2;
+  const utilidad3und = utilidad * 3;
+
   return {
     precio_proveedor: precioProveedor,
     flete_base: cfg.flete_base,
@@ -26,6 +40,12 @@ export function calcularPrecio(
     precio_venta: precioVenta,
     precio_comparacion: precioComparacion,
     margen_pct: margenPct,
+    precio_2und: precio2und,
+    utilidad_2und: utilidad2und,
+    margen_2und: precio2und > 0 ? utilidad2und / precio2und : 0,
+    precio_3und: precio3und,
+    utilidad_3und: utilidad3und,
+    margen_3und: precio3und > 0 ? utilidad3und / precio3und : 0,
   };
 }
 
