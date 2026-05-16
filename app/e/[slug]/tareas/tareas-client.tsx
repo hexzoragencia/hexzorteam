@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import {
   ListTodo, Plus, Trash2, Pencil, Save, X as Close, Search,
   CheckCircle2, Circle, Clock, AlertTriangle, Flame, Calendar,
-  User as UserIcon, ChevronDown, Package, MoreHorizontal,
+  User as UserIcon, ChevronDown, Package, MoreHorizontal, Info,
 } from "lucide-react";
 
 type Estado = "pendiente" | "en_progreso" | "hecha";
@@ -30,10 +30,10 @@ type Tarea = {
   created_at: string;
 };
 
-const ESTADOS: { value: Estado; label: string; icon: any; dot: string; text: string; bg: string; border: string }[] = [
-  { value: "pendiente",    label: "Pendientes",   icon: Circle,        dot: "bg-zinc-400",    text: "text-zinc-500",                        bg: "bg-zinc-500/10",    border: "border-zinc-500/30" },
-  { value: "en_progreso",  label: "En progreso",  icon: Clock,         dot: "bg-amber-500",   text: "text-amber-600 dark:text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/30" },
-  { value: "hecha",        label: "Hechas",       icon: CheckCircle2,  dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
+const ESTADOS: { value: Estado; label: string; ayuda: string; icon: any; dot: string; text: string; bg: string; border: string }[] = [
+  { value: "pendiente",    label: "Pendientes",   ayuda: "Aún sin empezar. Lo que hay que hacer.",      icon: Circle,        dot: "bg-zinc-400",    text: "text-zinc-500",                        bg: "bg-zinc-500/10",    border: "border-zinc-500/30" },
+  { value: "en_progreso",  label: "En progreso",  ayuda: "Alguien ya la está haciendo ahora.",          icon: Clock,         dot: "bg-amber-500",   text: "text-amber-600 dark:text-amber-400",   bg: "bg-amber-500/10",   border: "border-amber-500/30" },
+  { value: "hecha",        label: "Hechas",       ayuda: "Terminadas. Buen trabajo.",                   icon: CheckCircle2,  dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
 ];
 
 const PRIORIDADES: { value: Prioridad; label: string; color: string; icon?: any }[] = [
@@ -102,6 +102,9 @@ export function TareasClient({ espacioId, tareas: initial, miembros, productos }
   const [form, setForm] = useState<FormState>(FORM_DEFAULT);
   const [saving, setSaving] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState<string | null>(null);
+  // Drag & drop
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<Estado | null>(null);
 
   // Filtrar
   const filtradas = useMemo(() => {
@@ -127,6 +130,39 @@ export function TareasClient({ espacioId, tareas: initial, miembros, productos }
     for (const t of tareas) m[t.prioridad] = (m[t.prioridad] ?? 0) + 1;
     return m;
   }, [tareas]);
+
+  // "Para hoy" — tareas NO hechas vencidas o que vencen hoy
+  const hoyIso = (() => {
+    const d = new Date(); d.setHours(0,0,0,0);
+    return d.toISOString().slice(0, 10);
+  })();
+  const paraHoy = useMemo(() => {
+    return tareas
+      .filter(t => t.estado !== "hecha" && t.fecha_limite && t.fecha_limite <= hoyIso)
+      .sort((a, b) => (a.fecha_limite ?? "").localeCompare(b.fecha_limite ?? ""));
+  }, [tareas, hoyIso]);
+
+  // "Qué le toca a cada uno" — tareas activas (no hechas) agrupadas por persona
+  const porPersona = useMemo(() => {
+    const m: Record<string, Tarea[]> = {};
+    for (const t of tareas) {
+      if (t.estado === "hecha") continue;
+      const k = t.asignado?.trim() || "Sin asignar";
+      (m[k] ??= []).push(t);
+    }
+    return Object.entries(m).sort((a, b) => b[1].length - a[1].length);
+  }, [tareas]);
+
+  // ===== DRAG & DROP =====
+  function onDropEnColumna(estado: Estado) {
+    setDragOver(null);
+    const id = draggingId;
+    setDraggingId(null);
+    if (!id) return;
+    const t = tareas.find(x => x.id === id);
+    if (!t || t.estado === estado) return;
+    cambiarEstado(id, estado);
+  }
 
   function abrirCrear(estadoDefault: Estado = "pendiente") {
     setForm({ ...FORM_DEFAULT, estado: estadoDefault });
@@ -365,7 +401,53 @@ export function TareasClient({ espacioId, tareas: initial, miembros, productos }
         </div>
       )}
 
-      {/* KANBAN — 3 columnas */}
+      {/* ===== PARA HOY ===== */}
+      {paraHoy.length > 0 && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/5 overflow-hidden">
+          <div className="px-4 py-3 border-b border-rose-500/20 flex items-center gap-2">
+            <Flame className="h-4 w-4 text-rose-500" />
+            <h2 className="text-sm font-semibold">Para hoy / atrasadas</h2>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-600 dark:text-rose-400 font-semibold">
+              {paraHoy.length}
+            </span>
+            <span className="text-[11px] text-muted-foreground ml-1">— esto es lo que toca resolver YA</span>
+          </div>
+          <div className="p-3 space-y-2">
+            {paraHoy.map(t => (
+              <div key={t.id} className="flex items-center gap-3 rounded-lg bg-card border border-border px-3 py-2">
+                <button
+                  onClick={() => toggleHecha(t)}
+                  className="shrink-0 h-5 w-5 rounded-md border-2 border-border hover:border-emerald-500 flex items-center justify-center"
+                  title="Marcar como hecha"
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-medium truncate">{t.titulo}</div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {t.asignado ? `${t.asignado} · ` : ""}
+                    {t.fecha_limite === hoyIso ? "vence hoy" : `vencida (${t.fecha_limite})`}
+                  </div>
+                </div>
+                <span className={cn("text-[10px] px-1.5 py-0.5 rounded uppercase tracking-wider font-semibold shrink-0",
+                  (PRIORIDADES.find(p => p.value === t.prioridad) ?? PRIORIDADES[1]).color)}>
+                  {(PRIORIDADES.find(p => p.value === t.prioridad) ?? PRIORIDADES[1]).label}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ===== AYUDA: cómo funciona ===== */}
+      <div className="rounded-lg bg-muted/40 border border-border px-4 py-2.5 text-[12px] text-muted-foreground flex items-start gap-2">
+        <Info className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+        <span>
+          <b className="text-foreground">Arrastra las tarjetas</b> con el mouse entre columnas: cuando alguien
+          empieza una tarea, la mueves a <b>En progreso</b>; cuando la termina, a <b>Hechas</b>.
+          También puedes usar el botón <b>⋯</b> de cada tarjeta.
+        </span>
+      </div>
+
+      {/* ===== KANBAN — 3 columnas con drag & drop ===== */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
         {ESTADOS.map(estado => (
           <Columna
@@ -380,9 +462,54 @@ export function TareasClient({ espacioId, tareas: initial, miembros, productos }
             onCambiarEstado={cambiarEstado}
             onCrearEnColumna={() => abrirCrear(estado.value)}
             nombreProducto={nombreProducto}
+            draggingId={draggingId}
+            dragOver={dragOver === estado.value}
+            onDragStartCard={(id) => setDraggingId(id)}
+            onDragEndCard={() => { setDraggingId(null); setDragOver(null); }}
+            onDragOverCol={() => setDragOver(estado.value)}
+            onDragLeaveCol={() => setDragOver(d => d === estado.value ? null : d)}
+            onDropCol={() => onDropEnColumna(estado.value)}
           />
         ))}
       </div>
+
+      {/* ===== QUÉ LE TOCA A CADA UNO ===== */}
+      {porPersona.length > 0 && (
+        <div className="rounded-xl border border-border bg-card overflow-hidden">
+          <div className="px-4 py-3 border-b border-border/50 flex items-center gap-2">
+            <UserIcon className="h-4 w-4 text-primary" />
+            <h2 className="text-sm font-semibold">Qué le toca a cada uno</h2>
+            <span className="text-[11px] text-muted-foreground ml-1">— tareas activas por persona</span>
+          </div>
+          <div className="p-3 grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {porPersona.map(([persona, ts]) => (
+              <div key={persona} className="rounded-lg border border-border bg-muted/30 p-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-6 h-6 rounded-full bg-primary/15 text-primary text-[10px] font-bold flex items-center justify-center">
+                    {iniciales(persona)}
+                  </span>
+                  <span className="text-sm font-medium truncate flex-1">{persona}</span>
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground tabular-nums">
+                    {ts.length}
+                  </span>
+                </div>
+                <ul className="space-y-1">
+                  {ts.slice(0, 5).map(t => (
+                    <li key={t.id} className="text-[12px] text-muted-foreground flex items-center gap-1.5">
+                      <span className={cn("w-1.5 h-1.5 rounded-full shrink-0",
+                        t.estado === "en_progreso" ? "bg-amber-500" : "bg-zinc-400")} />
+                      <span className="truncate">{t.titulo}</span>
+                    </li>
+                  ))}
+                  {ts.length > 5 && (
+                    <li className="text-[11px] text-muted-foreground/70">+{ts.length - 5} más…</li>
+                  )}
+                </ul>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -405,7 +532,7 @@ function ChipFiltro({ label, count, activo, onClick, color }: {
   );
 }
 
-function Columna({ estado, tareas, menuAbiertoId, onAbrirMenu, onToggleHecha, onEditar, onBorrar, onCambiarEstado, onCrearEnColumna, nombreProducto }: {
+function Columna({ estado, tareas, menuAbiertoId, onAbrirMenu, onToggleHecha, onEditar, onBorrar, onCambiarEstado, onCrearEnColumna, nombreProducto, draggingId, dragOver, onDragStartCard, onDragEndCard, onDragOverCol, onDragLeaveCol, onDropCol }: {
   estado: typeof ESTADOS[number];
   tareas: Tarea[];
   menuAbiertoId: string | null;
@@ -416,19 +543,41 @@ function Columna({ estado, tareas, menuAbiertoId, onAbrirMenu, onToggleHecha, on
   onCambiarEstado: (id: string, nuevo: Estado) => void;
   onCrearEnColumna: () => void;
   nombreProducto: (id: string | null) => string | null;
+  draggingId: string | null;
+  dragOver: boolean;
+  onDragStartCard: (id: string) => void;
+  onDragEndCard: () => void;
+  onDragOverCol: () => void;
+  onDragLeaveCol: () => void;
+  onDropCol: () => void;
 }) {
-  const Icon = estado.icon;
   return (
-    <div className="rounded-xl border border-border bg-muted/20 p-3 flex flex-col gap-3 min-h-[200px]">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className={cn("w-2 h-2 rounded-full", estado.dot)}></span>
-          <h2 className="text-sm font-semibold uppercase tracking-wider">{estado.label}</h2>
-          <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground tabular-nums">{tareas.length}</span>
+    <div
+      onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = "move"; onDragOverCol(); }}
+      onDragLeave={(e) => {
+        // Solo quitar highlight si el mouse salió de verdad de la columna
+        if (!e.currentTarget.contains(e.relatedTarget as Node)) onDragLeaveCol();
+      }}
+      onDrop={(e) => { e.preventDefault(); onDropCol(); }}
+      className={cn(
+        "rounded-xl border p-3 flex flex-col gap-3 min-h-[220px] transition-colors",
+        dragOver
+          ? cn(estado.border, estado.bg, "border-dashed ring-2 ring-offset-0", estado.border)
+          : "border-border bg-muted/20",
+      )}
+    >
+      <div className="flex items-start justify-between">
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className={cn("w-2 h-2 rounded-full", estado.dot)}></span>
+            <h2 className="text-sm font-semibold uppercase tracking-wider">{estado.label}</h2>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground tabular-nums">{tareas.length}</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground mt-0.5">{estado.ayuda}</p>
         </div>
         <button
           onClick={onCrearEnColumna}
-          className="h-6 w-6 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground flex items-center justify-center"
+          className="h-6 w-6 rounded-md text-muted-foreground hover:bg-muted hover:text-foreground flex items-center justify-center shrink-0"
           title={`Nueva tarea en ${estado.label}`}
         >
           <Plus className="h-3.5 w-3.5" />
@@ -437,14 +586,20 @@ function Columna({ estado, tareas, menuAbiertoId, onAbrirMenu, onToggleHecha, on
 
       <div className="flex-1 space-y-2">
         {tareas.length === 0 ? (
-          <div className="text-center text-xs text-muted-foreground/60 py-8 border border-dashed border-border rounded-lg">
-            Sin tareas
+          <div className={cn(
+            "text-center text-xs py-10 border border-dashed rounded-lg transition",
+            dragOver ? cn(estado.text, estado.border) : "text-muted-foreground/60 border-border"
+          )}>
+            {dragOver ? "Suelta aquí ↓" : "Sin tareas · arrastra una aquí"}
           </div>
         ) : (
           tareas.map(t => (
             <CardTarea
               key={t.id}
               t={t}
+              arrastrando={draggingId === t.id}
+              onDragStart={() => onDragStartCard(t.id)}
+              onDragEnd={onDragEndCard}
               menuAbierto={menuAbiertoId === t.id}
               onAbrirMenu={(open) => onAbrirMenu(open ? t.id : null)}
               onToggleHecha={() => onToggleHecha(t)}
@@ -460,7 +615,7 @@ function Columna({ estado, tareas, menuAbiertoId, onAbrirMenu, onToggleHecha, on
   );
 }
 
-function CardTarea({ t, menuAbierto, onAbrirMenu, onToggleHecha, onEditar, onBorrar, onCambiarEstado, productoNombre }: {
+function CardTarea({ t, menuAbierto, onAbrirMenu, onToggleHecha, onEditar, onBorrar, onCambiarEstado, productoNombre, arrastrando, onDragStart, onDragEnd }: {
   t: Tarea;
   menuAbierto: boolean;
   onAbrirMenu: (open: boolean) => void;
@@ -469,6 +624,9 @@ function CardTarea({ t, menuAbierto, onAbrirMenu, onToggleHecha, onEditar, onBor
   onBorrar: () => void;
   onCambiarEstado: (n: Estado) => void;
   productoNombre: string | null;
+  arrastrando: boolean;
+  onDragStart: () => void;
+  onDragEnd: () => void;
 }) {
   const prio = PRIORIDADES.find(p => p.value === t.prioridad) ?? PRIORIDADES[1];
   const PrioIcon = prio.icon;
@@ -483,10 +641,15 @@ function CardTarea({ t, menuAbierto, onAbrirMenu, onToggleHecha, onEditar, onBor
     "text-muted-foreground";
 
   return (
-    <div className={cn(
-      "group rounded-lg border border-border bg-card p-3 transition-all hover:shadow-md hover:border-primary/30",
-      esHecha && "opacity-60"
-    )}>
+    <div
+      draggable
+      onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart(); }}
+      onDragEnd={onDragEnd}
+      className={cn(
+        "group rounded-lg border border-border bg-card p-3 transition-all hover:shadow-md hover:border-primary/30 cursor-grab active:cursor-grabbing",
+        esHecha && "opacity-60",
+        arrastrando && "opacity-40 ring-2 ring-primary scale-[0.98]"
+      )}>
       <div className="flex items-start gap-2.5">
         {/* Checkbox */}
         <button
