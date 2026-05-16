@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
 import { hoyIso } from "@/lib/fechas";
+import { registrarCampana } from "@/lib/campanas";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -319,6 +320,63 @@ Si va atrasado, lo dices claro pero motivador: "Vas en 60% del mes, te faltan
 640 pedidos en 10 días — necesitas 64/día. ¡Manos a la obra!"
 `;
 
+// ============================================================
+// Prompt para sección CAMPAÑAS — control diario de pauta
+// ============================================================
+const SYSTEM_CAMPANAS = `
+=========================================================
+MODO ACTUAL: CONTROL DIARIO DE CAMPAÑAS / PAUTA
+=========================================================
+Estás en "Campañas ADS". Aquí el usuario registra, día a día y por producto,
+cuánto gastó en pauta y cuántas ventas hizo. El sistema calcula solo el CPA,
+el CPA breakeven y si está GANANDO o PERDIENDO.
+
+# TOOL
+- registrar_campana_dia(producto, fecha, gasto_fb, gasto_tk, num_ventas, precio_venta?, costo_proveedor?, flete?, observacion?)
+  Esta tool, además de guardar la campaña:
+  · suma las ventas al tracking de Proyección automáticamente
+  · registra el gasto de pauta como gasto real en Contabilidad
+  · usa el % de efectividad de Proyección para el cálculo real
+
+# 📸 LECTURA DE CAPTURAS
+El usuario sube pantallazos. Identifica la plataforma y extrae:
+
+META ADS MANAGER → busca "Importe gastado" / "Gasto" (= gasto_fb) y
+  "Compras" / "Pedidos" / "Resultados" (= num_ventas si no hay Shopify).
+TIKTOK ADS MANAGER → "Costo" / "Gasto" (= gasto_tk), "Conversiones"/"Compras".
+SHOPIFY → "Pedidos" / "Ventas" del día (= num_ventas REAL, tiene prioridad
+  sobre las compras que reporta Meta).
+DROPI → pedidos confirmados/entregados.
+
+REGLAS:
+1. NUNCA inventes cifras. Si no se ve claro, pregunta con conversar.
+2. Si suben SOLO captura de Meta (sin Shopify): registra el gasto y usa las
+   "Compras" de Meta como num_ventas, y avísale: "Registré con las compras de
+   Meta. Si tienes el dato exacto de Shopify, pásamelo y lo corrijo."
+3. Si NO hay ninguna venta visible pero sí gasto: registra igual con
+   num_ventas=0 — el gasto debe quedar contabilizado sí o sí.
+4. Identifica el producto: por el nombre de la campaña en la captura o
+   pregunta "¿de qué producto es esta pauta?".
+5. Fecha: la del rango de la captura; si dice "Hoy", usa hoy.
+
+# 🗣️ TEXTO / AUDIO
+- "hoy gasté 80k en facebook del mosaico e hice 12 ventas" →
+  registrar_campana_dia(producto:"mosaico", gasto_fb:80000, num_ventas:12)
+- "en tiktok del reloj metí 120 mil y vendí 9" →
+  registrar_campana_dia(producto:"reloj", gasto_tk:120000, num_ventas:9)
+- "ayer el mosaico: 50k fb, 30k tiktok, 7 ventas" → con fecha de ayer
+
+# ANÁLISIS
+Tras registrar, da una lectura corta y real:
+"Mosaico hoy: gastaste 80k, 12 ventas → CPA $6.667. Tu CPA breakeven es ~$15k
+(precio - costo - flete), así que vas GANANDO ✅. Utilidad neta del día ≈ $X."
+Si el CPA real supera el breakeven: "Vas PERDIENDO ⚠️ — el CPA ($X) está por
+encima de lo que aguanta el producto ($Y). Toca bajar pauta o subir precio."
+
+# TONO
+Amigo colombiano, mentor de performance marketing. Directo, números claros.
+`;
+
 
 const tools: any[] = [
   {
@@ -608,6 +666,28 @@ const tools: any[] = [
   {
     type: "function",
     function: {
+      name: "registrar_campana_dia",
+      description: "Registra la pauta y ventas de un producto en un día (Campañas). Además suma las ventas a Proyección y registra el gasto de pauta como gasto real. Usa esto cuando el user habla de pauta/gasto en Meta o TikTok, o sube captura de Meta/TikTok/Shopify en la sección campañas.",
+      parameters: {
+        type: "object",
+        properties: {
+          producto: { type: "string", description: "Nombre o palabra clave del producto" },
+          fecha: { type: "string", description: "YYYY-MM-DD. Default hoy" },
+          gasto_fb: { type: "number", description: "Gasto en Meta/Facebook ese día" },
+          gasto_tk: { type: "number", description: "Gasto en TikTok ese día" },
+          num_ventas: { type: "integer", description: "Ventas/pedidos del día (Shopify real si está disponible; si no, compras de Meta)" },
+          precio_venta: { type: "number", description: "Precio de venta unitario; si no se da, se toma del producto" },
+          costo_proveedor: { type: "number", description: "Costo del proveedor; si no se da, se toma del producto" },
+          flete: { type: "number", description: "Flete/devolución por unidad, opcional" },
+          observacion: { type: "string" },
+        },
+        required: ["producto"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
       name: "registrar_venta_dia",
       description: "Registra las ventas y productos nuevos de un día específico. Usa esta tool cuando el user dice cuántas ventas hizo (texto, audio o captura de Meta/TikTok/Shopify). Si la fecha ya existe, actualiza ese registro. Si no se da fecha explícita, usa hoy.",
       parameters: {
@@ -788,6 +868,9 @@ export async function POST(req: Request) {
     }
     if (tipoEspacio === "empresarial" && seccion === "proyeccion") {
       systemMessages.push({ role: "system", content: SYSTEM_PROYECCION });
+    }
+    if (tipoEspacio === "empresarial" && seccion === "campanas") {
+      systemMessages.push({ role: "system", content: SYSTEM_CAMPANAS });
     }
     systemMessages.push({
       role: "system",
@@ -1282,6 +1365,40 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
     const { error } = await sb.from("emp_productos").update(updates).eq("id", prod.id);
     if (error) throw new Error(error.message);
     return `🔄 Moví "${prod.nombre}" de ${prod.estado} → ${args.nuevo_estado}.`;
+  }
+
+  // ============================================================
+  // CAMPAÑAS — handler (registra + suma a proyección + gasto pauta)
+  // ============================================================
+  if (fn === "registrar_campana_dia") {
+    const fecha = args.fecha || hoyIso();
+    const q = String(args.producto ?? "").trim().toLowerCase();
+    let producto: any = null;
+    if (q) {
+      const { data: prods } = await sb.from("emp_productos")
+        .select("id, nombre, precio_final, costo_proveedor")
+        .eq("espacio_id", espacioId).ilike("nombre", `%${q}%`).limit(2);
+      if (prods && prods.length === 1) producto = prods[0];
+      else if (prods && prods.length > 1) {
+        return `Hay varios productos con "${args.producto}": ${prods.map((p: any) => `"${p.nombre}"`).join(", ")}. Sé más específico.`;
+      }
+    }
+    const r = await registrarCampana(sb, espacioId, {
+      producto_id: producto?.id ?? null,
+      fecha,
+      nombre_campana: producto?.nombre ? `Pauta ${producto.nombre}` : "Testeo",
+      num_ventas: args.num_ventas ?? 0,
+      precio_venta: args.precio_venta ?? producto?.precio_final ?? null,
+      costo_proveedor: args.costo_proveedor ?? producto?.costo_proveedor ?? null,
+      costo_pauta_fb: args.gasto_fb ?? 0,
+      costo_pauta_tk: args.gasto_tk ?? 0,
+      flete_devolucion: args.flete ?? 0,
+      observacion: args.observacion ?? null,
+    });
+    const nombreProd = producto?.nombre ?? "producto sin vincular";
+    const cpa = r.numVentas > 0 ? Math.round(r.totalPauta / r.numVentas) : 0;
+    const cpaTxt = r.numVentas > 0 ? ` CPA $${cpa.toLocaleString("es-CO")}.` : "";
+    return `📊 Registré pauta de ${nombreProd} (${fecha}): $${r.totalPauta.toLocaleString("es-CO")} en pauta, ${r.numVentas} ventas.${cpaTxt} ${r.avisos.join("; ")}.`;
   }
 
   // ============================================================

@@ -65,6 +65,17 @@ export function CampanasClient({ espacioId, moneda, campanas: initial, productos
     return { totalPublicidad, totalVentas, totalUtilidad, cpaPromedio, roiPromedio, count: recientes.length };
   }, [campanas]);
 
+  // Resumen del DÍA de hoy (lo que pidió el usuario: gana o pierde HOY)
+  const hoyStats = useMemo(() => {
+    const hoy = new Date().toISOString().slice(0, 10);
+    const dia = campanas.filter(c => c.fecha?.slice(0, 10) === hoy);
+    const pauta = dia.reduce((s, c) => s + Number(c.total_publicidad), 0);
+    const ventas = dia.reduce((s, c) => s + c.num_ventas, 0);
+    const utilidad = dia.reduce((s, c) => s + Number(c.utilidad_neta), 0);
+    const cpa = ventas > 0 ? pauta / ventas : 0;
+    return { pauta, ventas, utilidad, cpa, count: dia.length, gana: utilidad >= 0 };
+  }, [campanas]);
+
   function abrirCrear() {
     setForm({ ...FORM_DEFAULT });
     setEditing(null);
@@ -112,13 +123,38 @@ export function CampanasClient({ espacioId, moneda, campanas: initial, productos
       observacion: form.observacion || null,
     };
     if (editing) {
+      // Edición: solo actualiza la campaña (no re-suma a proyección ni gastos)
       const { error } = await supabase.from("emp_campanas").update(payload).eq("id", editing);
       setSaving(false);
       if (error) { alert(error.message); return; }
     } else {
-      const { error } = await supabase.from("emp_campanas").insert(payload);
+      // Registro nuevo: usa el endpoint que ADEMÁS suma ventas a Proyección
+      // y registra el gasto de pauta como gasto real en Contabilidad.
+      const res = await fetch("/api/campanas/registrar", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          espacioId,
+          producto_id: form.producto_id || null,
+          fecha: form.fecha,
+          nombre_campana: form.nombre_campana || "Testeo",
+          num_ventas: form.num_ventas ?? 0,
+          precio_venta: form.precio_venta ?? null,
+          costo_proveedor: form.costo_proveedor ?? null,
+          costo_pauta_fb: form.costo_pauta_fb ?? 0,
+          costo_pauta_tk: form.costo_pauta_tk ?? 0,
+          flete_devolucion: form.flete_devolucion ?? 0,
+          efectividad_pct: form.efectividad_pct ?? null,
+          observacion: form.observacion || null,
+        }),
+      });
+      const json = await res.json();
       setSaving(false);
-      if (error) { alert(error.message); return; }
+      if (!res.ok) { alert(json.error ?? "Error al registrar"); return; }
+      if (json.avisos?.length) {
+        // Feedback breve de lo que se conectó automáticamente
+        setTimeout(() => alert("✅ Registrado. " + json.avisos.join(" · ")), 100);
+      }
     }
     cancelar();
     router.refresh();
@@ -160,6 +196,47 @@ export function CampanasClient({ espacioId, moneda, campanas: initial, productos
           <p className="text-muted-foreground text-sm">Tracker diario por campaña con cálculo automático de CPA, utilidad y ROI.</p>
         </div>
         <Button onClick={abrirCrear}><Plus className="h-4 w-4 mr-1" /> Nuevo registro</Button>
+      </div>
+
+      {/* RESUMEN DE HOY — ¿gano o pierdo hoy? */}
+      <div className={cn(
+        "rounded-xl border p-4",
+        hoyStats.count === 0 ? "border-border bg-card" :
+        hoyStats.gana ? "border-emerald-500/30 bg-emerald-500/5" : "border-rose-500/30 bg-rose-500/5"
+      )}>
+        <div className="flex items-center justify-between flex-wrap gap-3">
+          <div>
+            <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">Hoy</div>
+            {hoyStats.count === 0 ? (
+              <p className="text-sm text-muted-foreground mt-1">Aún no registras pauta hoy. Súbele un pantallazo de Meta al coach o crea un registro.</p>
+            ) : (
+              <div className="flex items-baseline gap-2 mt-1">
+                <span className={cn("text-3xl font-bold", hoyStats.gana ? "text-emerald-600 dark:text-emerald-400" : "text-rose-600 dark:text-rose-400")}>
+                  {hoyStats.gana ? "GANANDO" : "PERDIENDO"}
+                </span>
+                <span className="text-sm text-muted-foreground">
+                  utilidad neta {formatMoney(hoyStats.utilidad, moneda)}
+                </span>
+              </div>
+            )}
+          </div>
+          {hoyStats.count > 0 && (
+            <div className="flex gap-4 text-right">
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Pauta hoy</div>
+                <div className="text-lg font-bold tabular-nums">{formatMoney(hoyStats.pauta, moneda)}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Ventas</div>
+                <div className="text-lg font-bold tabular-nums">{hoyStats.ventas}</div>
+              </div>
+              <div>
+                <div className="text-[10px] uppercase tracking-wider text-muted-foreground">CPA</div>
+                <div className="text-lg font-bold tabular-nums">{formatMoney(hoyStats.cpa, moneda)}</div>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* KPIs últimos 30 días */}
