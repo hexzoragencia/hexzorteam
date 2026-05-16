@@ -263,8 +263,8 @@ export function EspacioClient({ espacio, aliasInicial, emailActual }: { espacio:
         <CardContent className="space-y-3">
           <p className="text-sm text-muted-foreground">
             Para usar el coach IA, las capturas, audios y todas las herramientas inteligentes,
-            este espacio necesita una API key de OpenAI. Cada espacio usa su propia clave
-            (así cada quien paga su propio consumo).
+            este espacio <b>necesita su propia API key de OpenAI</b>. No se comparte ninguna
+            clave general — cada espacio paga su propio consumo. Sin esta clave la IA no funciona.
           </p>
 
           <div className={`rounded-lg border px-3 py-2 text-sm flex items-center gap-2 ${
@@ -273,7 +273,7 @@ export function EspacioClient({ espacio, aliasInicial, emailActual }: { espacio:
             {apiKeyConfigurada ? <Check className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
             {apiKeyConfigurada
               ? <span>API key configurada {apiKeyPista && <span className="font-mono opacity-70">({apiKeyPista})</span>} — la IA está activa.</span>
-              : <span>Sin API key propia. La IA usará la clave general si está disponible.</span>}
+              : <span>Sin API key. El coach y las herramientas IA están <b>desactivados</b> hasta que pongas tu clave.</span>}
           </div>
 
           <div className="space-y-1.5">
@@ -282,11 +282,14 @@ export function EspacioClient({ espacio, aliasInicial, emailActual }: { espacio:
             </label>
             <Input
               type="password"
+              name="hexzor-openai-key"
               value={apiKeyInput}
               onChange={(e) => setApiKeyInput(e.target.value)}
               placeholder="sk-..."
               className="font-mono h-10"
-              autoComplete="off"
+              autoComplete="new-password"
+              data-1p-ignore
+              data-lpignore="true"
             />
             <p className="text-[11px] text-muted-foreground">
               La obtienes en <span className="font-mono">platform.openai.com/api-keys</span>.
