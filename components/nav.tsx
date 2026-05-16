@@ -42,9 +42,7 @@ function buildNav(tipo: "empresarial" | "personal"): NavEntry[] {
     { href: "espacio",    label: "Datos del espacio", icon: "Building2" },
     { href: "apariencia", label: "Apariencia", icon: "Palette" },
   ];
-  if (tipo === "empresarial") {
-    ajustesItems.push({ href: "configuracion", label: "Calculadora config", icon: "Settings" });
-  }
+  // "Calculadora config" se eliminó del menú: ahora se edita dentro de la Calculadora.
   const ajustes: NavGroup = { id: "ajustes", label: "Ajustes", icon: "Settings", items: ajustesItems };
 
   const productividad: NavGroup = {
