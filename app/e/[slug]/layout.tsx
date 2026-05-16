@@ -3,7 +3,6 @@ import { Nav } from "@/components/nav";
 import { createClient } from "@/lib/supabase/server";
 import { PomodoroWidget } from "@/components/pomodoro-widget";
 import { CoachChat } from "@/components/coach-chat";
-import { BotonAyuda } from "@/components/boton-ayuda";
 import { AparienciaApplier } from "@/components/apariencia-applier";
 import { getPreferenciasEspacio } from "@/lib/preferencias-server";
 import { hoyIso, sumarDias } from "@/lib/fechas";
@@ -55,8 +54,6 @@ export default async function EspacioLayout({
       <PomodoroWidget espacio={espacio} tareasHoy={tareasHoy} />
       {/* Coach IA chat: en ambos espacios */}
       <CoachChat espacioId={espacio.id} />
-      {/* Botón flotante de guía paso a paso (esquina inferior izquierda) */}
-      <BotonAyuda />
     </div>
   );
 }
