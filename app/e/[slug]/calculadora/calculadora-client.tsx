@@ -1,26 +1,56 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Select } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
 import { MoneyInput } from "@/components/ui/money-input";
+import { createClient } from "@/lib/supabase/client";
 import { calcularPrecio } from "@/lib/calc";
 import { formatMoney, formatPct } from "@/lib/utils";
 import type { CountryConfig } from "@/lib/types";
 
 const CURRENCY_SYMBOLS: Record<string, string> = { COP: "$", MXN: "$", USD: "$", EUR: "€", CLP: "$" };
 
-export function CalculadoraClient({ paises }: { paises: CountryConfig[] }) {
-  const [code, setCode] = useState(paises[0].code);
+export function CalculadoraClient({ paises: paisesInit }: { paises: CountryConfig[] }) {
+  const supabase = createClient();
+  const router = useRouter();
+  const [paises, setPaises] = useState(paisesInit);
+  const [code, setCode] = useState(paisesInit[0].code);
   const [precio, setPrecio] = useState<number | "">("");
+  const [showConfig, setShowConfig] = useState(false);
+  const [savingCfg, setSavingCfg] = useState(false);
+  const [cfgMsg, setCfgMsg] = useState<string | null>(null);
 
   const cfg = useMemo(() => paises.find((p) => p.code === code)!, [paises, code]);
   const result = useMemo(() => {
     if (precio === "" || precio <= 0) return null;
     return calcularPrecio(precio, cfg);
   }, [precio, cfg]);
+
+  // Editar parámetros del país en vivo (recalcula automáticamente)
+  function updateCfg(patch: Partial<CountryConfig>) {
+    setPaises(paises.map((p) => (p.code === code ? { ...p, ...patch } : p)));
+  }
+
+  async function guardarCfg() {
+    setSavingCfg(true);
+    setCfgMsg(null);
+    const { error } = await supabase.from("paises_config").upsert({
+      code: cfg.code, nombre: cfg.nombre, bandera: cfg.bandera, moneda: cfg.moneda,
+      flete_base: cfg.flete_base, pct_entrega: cfg.pct_entrega,
+      pct_cpa_objetivo: cfg.pct_cpa_objetivo, pct_utilidad_objetivo: cfg.pct_utilidad_objetivo,
+      pct_comparacion: cfg.pct_comparacion,
+    });
+    setSavingCfg(false);
+    if (error) { setCfgMsg(`Error: ${error.message}`); return; }
+    setCfgMsg(`✓ Parámetros de ${cfg.nombre} guardados`);
+    router.refresh();
+    setTimeout(() => setCfgMsg(null), 2500);
+  }
 
   return (
     <div className="space-y-6">
@@ -45,12 +75,47 @@ export function CalculadoraClient({ paises }: { paises: CountryConfig[] }) {
             <MoneyInput value={precio} onValueChange={setPrecio}
               currency={CURRENCY_SYMBOLS[cfg.moneda] ?? "$"} autoFocus />
           </div>
-          <p className="text-xs text-muted-foreground sm:col-span-2">
-            Parámetros: flete base {formatMoney(cfg.flete_base, cfg.moneda)} · entrega {formatPct(cfg.pct_entrega)} · CPA {formatPct(cfg.pct_cpa_objetivo)} · utilidad {formatPct(cfg.pct_utilidad_objetivo)} · {" "}
-            <Link href="../configuracion" className="underline">editar</Link>
-          </p>
+          <div className="sm:col-span-2 flex items-center justify-between flex-wrap gap-2">
+            <p className="text-xs text-muted-foreground">
+              Flete {formatMoney(cfg.flete_base, cfg.moneda)} · entrega {formatPct(cfg.pct_entrega)} · CPA {formatPct(cfg.pct_cpa_objetivo)} · utilidad {formatPct(cfg.pct_utilidad_objetivo)}
+            </p>
+            <button
+              type="button"
+              onClick={() => setShowConfig(v => !v)}
+              className="text-xs text-primary underline"
+            >
+              {showConfig ? "Ocultar parámetros" : "✎ Editar parámetros aquí"}
+            </button>
+          </div>
         </CardContent>
       </Card>
+
+      {/* PARÁMETROS EDITABLES — del país seleccionado, sin salir de aquí */}
+      {showConfig && (
+        <Card className="border-primary/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base flex items-center gap-2">
+              <span className="text-xl">{cfg.bandera}</span> Parámetros de {cfg.nombre}
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Edita y mira el resultado cambiar al instante. Dale Guardar para dejarlo fijo.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid sm:grid-cols-2 gap-3">
+              <CfgField label={`Flete base (${cfg.moneda})`} value={cfg.flete_base} step={100} onChange={(v) => updateCfg({ flete_base: v })} />
+              <CfgField label="% Entrega (0–1)" value={cfg.pct_entrega} step={0.05} max={1} onChange={(v) => updateCfg({ pct_entrega: v })} />
+              <CfgField label="% CPA objetivo (0–1)" value={cfg.pct_cpa_objetivo} step={0.05} max={0.99} onChange={(v) => updateCfg({ pct_cpa_objetivo: v })} />
+              <CfgField label="% Utilidad objetivo (0–1)" value={cfg.pct_utilidad_objetivo} step={0.05} max={0.99} onChange={(v) => updateCfg({ pct_utilidad_objetivo: v })} />
+              <CfgField label="% Comparación / ancla" value={cfg.pct_comparacion} step={0.05} max={2} onChange={(v) => updateCfg({ pct_comparacion: v })} />
+            </div>
+            {cfgMsg && <div className="text-xs rounded-md border bg-muted/50 px-3 py-2">{cfgMsg}</div>}
+            <Button onClick={guardarCfg} disabled={savingCfg} className="shadow-md shadow-primary/20">
+              {savingCfg ? "Guardando…" : "Guardar parámetros"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
 
       {result && (
         <>
@@ -132,6 +197,25 @@ function BigStat({ title, value, subtitle, highlight }: { title: string; value: 
         {subtitle && <p className="text-xs text-muted-foreground mt-1">{subtitle}</p>}
       </CardContent>
     </Card>
+  );
+}
+
+function CfgField({ label, value, onChange, step, max }: {
+  label: string; value: number; onChange: (v: number) => void; step?: number; max?: number;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label className="text-xs text-muted-foreground">{label}</Label>
+      <Input
+        type="number"
+        step={step ?? 0.01}
+        min={0}
+        max={max}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value) || 0)}
+        className="h-10 tabular-nums"
+      />
+    </div>
   );
 }
 
