@@ -413,7 +413,7 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
             }}
           >
             <Image
-              src="/coach-avatar.jpg" unoptimized
+              src="/coach-avatar.png" unoptimized
               alt="Tu coach"
               fill
               className="object-contain object-bottom pointer-events-none"
@@ -462,7 +462,7 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
       {/* HEADER */}
       <div className="flex items-center gap-3 p-3 border-b bg-gradient-to-r from-primary/10 to-transparent">
         <div className="relative h-10 w-10 rounded-full overflow-hidden border-2 border-primary shrink-0">
-          <Image src="/coach-avatar.jpg" unoptimized alt="Coach" fill className="object-cover object-top scale-[1.8]" />
+          <Image src="/coach-avatar.png" unoptimized alt="Coach" fill className="object-cover object-top scale-[1.8]" />
           <div className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-success border-2 border-card" />
         </div>
         <div className="flex-1 min-w-0">
@@ -488,7 +488,7 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
         {enviando && (
           <div className="flex items-end gap-2">
             <div className="relative h-8 w-8 rounded-full overflow-hidden border border-primary/40 shrink-0">
-              <Image src="/coach-avatar.jpg" unoptimized alt="" fill className="object-cover object-top scale-[1.8]" />
+              <Image src="/coach-avatar.png" unoptimized alt="" fill className="object-cover object-top scale-[1.8]" />
             </div>
             <div className="rounded-2xl rounded-bl-sm bg-card border px-3 py-2 flex items-center gap-1">
               <span className="h-1.5 w-1.5 rounded-full bg-primary/60 animate-bounce" style={{ animationDelay: "0ms" }} />
@@ -592,7 +592,7 @@ function Burbuja({ m }: { m: Mensaje }) {
     <div className={cn("flex items-end gap-2", esUsuario ? "flex-row-reverse" : "flex-row")}>
       {!esUsuario && (
         <div className="relative h-8 w-8 rounded-full overflow-hidden border border-primary/40 shrink-0">
-          <Image src="/coach-avatar.jpg" unoptimized alt="" fill className="object-cover object-top scale-[1.8]" />
+          <Image src="/coach-avatar.png" unoptimized alt="" fill className="object-cover object-top scale-[1.8]" />
         </div>
       )}
       <div className={cn(
