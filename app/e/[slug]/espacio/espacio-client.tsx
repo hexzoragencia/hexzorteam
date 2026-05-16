@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,6 +28,39 @@ export function EspacioClient({ espacio, aliasInicial, emailActual }: { espacio:
   const [passwordNueva, setPasswordNueva] = useState("");
   const [passwordConfirm, setPasswordConfirm] = useState("");
   const [savingPwd, setSavingPwd] = useState(false);
+  // API key de OpenAI por espacio
+  const [apiKeyInput, setApiKeyInput] = useState("");
+  const [apiKeyConfigurada, setApiKeyConfigurada] = useState(false);
+  const [apiKeyPista, setApiKeyPista] = useState<string | null>(null);
+  const [savingKey, setSavingKey] = useState(false);
+
+  useEffect(() => {
+    fetch(`/api/espacio/openai-key?espacioId=${espacio.id}`)
+      .then(r => r.json())
+      .then(j => { setApiKeyConfigurada(!!j.configurada); setApiKeyPista(j.pista ?? null); })
+      .catch(() => {});
+  }, [espacio.id]);
+
+  async function guardarApiKey() {
+    setSavingKey(true);
+    const res = await fetch("/api/espacio/openai-key", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ espacioId: espacio.id, apiKey: apiKeyInput.trim() }),
+    });
+    const j = await res.json();
+    setSavingKey(false);
+    if (!res.ok) { alert(j.error ?? "Error"); return; }
+    setApiKeyConfigurada(!!j.configurada);
+    setApiKeyInput("");
+    if (j.configurada) {
+      setApiKeyPista("••••" + (apiKeyInput.trim().slice(-4)));
+      alert("✅ API key guardada. La IA de este espacio ya usa tu propia cuenta de OpenAI.");
+    } else {
+      setApiKeyPista(null);
+      alert("API key eliminada. Este espacio volverá a usar la key general (si está disponible).");
+    }
+  }
 
   async function cambiarEmail() {
     const e = emailNuevo.trim();
@@ -216,6 +249,66 @@ export function EspacioClient({ espacio, aliasInicial, emailActual }: { espacio:
             >
               {savingPwd ? "Guardando..." : "Cambiar contraseña"}
             </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* API de IA — clave propia de OpenAI */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <KeyRound className="h-4 w-4 text-primary" /> API de IA (OpenAI)
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Para usar el coach IA, las capturas, audios y todas las herramientas inteligentes,
+            este espacio necesita una API key de OpenAI. Cada espacio usa su propia clave
+            (así cada quien paga su propio consumo).
+          </p>
+
+          <div className={`rounded-lg border px-3 py-2 text-sm flex items-center gap-2 ${
+            apiKeyConfigurada ? "border-success/40 bg-success/5 text-success" : "border-amber-500/40 bg-amber-500/5 text-amber-600 dark:text-amber-400"
+          }`}>
+            {apiKeyConfigurada ? <Check className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+            {apiKeyConfigurada
+              ? <span>API key configurada {apiKeyPista && <span className="font-mono opacity-70">({apiKeyPista})</span>} — la IA está activa.</span>
+              : <span>Sin API key propia. La IA usará la clave general si está disponible.</span>}
+          </div>
+
+          <div className="space-y-1.5">
+            <label className="text-xs text-muted-foreground">
+              {apiKeyConfigurada ? "Reemplazar API key" : "Pega tu API key de OpenAI"}
+            </label>
+            <Input
+              type="password"
+              value={apiKeyInput}
+              onChange={(e) => setApiKeyInput(e.target.value)}
+              placeholder="sk-..."
+              className="font-mono h-10"
+              autoComplete="off"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              La obtienes en <span className="font-mono">platform.openai.com/api-keys</span>.
+              Se guarda cifrada en el servidor y nunca se muestra completa.
+            </p>
+          </div>
+
+          <div className="flex gap-2">
+            <Button onClick={guardarApiKey} disabled={savingKey || (!apiKeyInput.trim() && !apiKeyConfigurada)}>
+              <Save className="h-4 w-4 mr-1" />
+              {savingKey ? "Guardando…" : "Guardar API key"}
+            </Button>
+            {apiKeyConfigurada && (
+              <Button
+                variant="outline"
+                onClick={() => { setApiKeyInput(""); guardarApiKey(); }}
+                disabled={savingKey}
+                className="text-destructive border-destructive/30 hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4 mr-1" /> Quitar
+              </Button>
+            )}
           </div>
         </CardContent>
       </Card>

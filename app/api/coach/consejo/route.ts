@@ -3,11 +3,10 @@ import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
 import { recolectarContexto } from "@/lib/coach";
 import { hoyIso } from "@/lib/fechas";
+import { getOpenAIKeyParaEspacio } from "@/lib/openai-key";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 function getSystemPrompt(tipoEspacio: "personal" | "empresarial"): string {
   if (tipoEspacio === "empresarial") {
@@ -86,6 +85,10 @@ export async function GET(req: Request) {
       supabase.from("perfiles").select("nombre").eq("id", user.id).maybeSingle(),
     ]);
     const aliasUsuario = ((miembro as any)?.alias || perfil?.nombre || "").trim() || "amigo";
+
+    const apiKey = await getOpenAIKeyParaEspacio(espacioId);
+    if (!apiKey) return NextResponse.json({ error: "Sin API key de OpenAI configurada" }, { status: 402 });
+    const openai = new OpenAI({ apiKey });
 
     // Llamar OpenAI con structured output
     const completion = await openai.chat.completions.create({

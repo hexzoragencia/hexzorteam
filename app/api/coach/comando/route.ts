@@ -3,11 +3,10 @@ import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
 import { hoyIso } from "@/lib/fechas";
 import { registrarCampana } from "@/lib/campanas";
+import { getOpenAIKeyParaEspacio } from "@/lib/openai-key";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 const SYSTEM = `Eres el coach personal del usuario en su app de finanzas + productividad. NO eres un asistente formal — eres como su MEJOR AMIGO que también es buen mentor: directo, cercano, colombiano, con humor sutil, sin ser empalagoso ni servicial. Le tratas de "tú" como un parcero.
 
@@ -888,6 +887,15 @@ export async function POST(req: Request) {
       espacioId = await getEspacioPersonal(supabase, user.id);
       if (!espacioId) return NextResponse.json({ error: "no espacio personal" }, { status: 404 });
     }
+
+    // API key: la del espacio si está configurada, si no la global del servidor
+    const apiKey = await getOpenAIKeyParaEspacio(espacioId);
+    if (!apiKey) {
+      return NextResponse.json({
+        error: "No hay API key de OpenAI. El owner debe ponerla en Datos del espacio → API de IA.",
+      }, { status: 402 });
+    }
+    const openai = new OpenAI({ apiKey });
 
     const fechaHoy = hoyIso();
 

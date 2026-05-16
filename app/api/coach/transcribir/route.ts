@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import OpenAI from "openai";
 import { createClient } from "@/lib/supabase/server";
+import { getOpenAIKeyParaEspacio } from "@/lib/openai-key";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 /**
  * Transcribe un audio (mp3/m4a/webm) usando OpenAI Whisper.
@@ -25,6 +24,11 @@ export async function POST(req: Request) {
     if (!audio || !(audio instanceof File)) {
       return NextResponse.json({ error: "audio no enviado" }, { status: 400 });
     }
+
+    const espacioId = (formData.get("espacio_id") as string) || null;
+    const apiKey = await getOpenAIKeyParaEspacio(espacioId);
+    if (!apiKey) return NextResponse.json({ error: "Sin API key de OpenAI" }, { status: 402 });
+    const openai = new OpenAI({ apiKey });
 
     // Whisper acepta múltiples formatos: mp3, mp4, mpeg, mpga, m4a, wav, webm
     const transcripcion = await openai.audio.transcriptions.create({

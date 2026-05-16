@@ -230,6 +230,7 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
       const file = new File([blob], `audio.${ext}`, { type: blob.type });
       const fd = new FormData();
       fd.append("audio", file);
+      if (espacioId) fd.append("espacio_id", espacioId);
       const res = await fetch("/api/coach/transcribir", { method: "POST", body: fd });
       const data = await res.json();
       if (!res.ok || !data.texto) {
