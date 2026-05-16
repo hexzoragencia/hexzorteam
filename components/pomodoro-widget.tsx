@@ -67,6 +67,7 @@ export function PomodoroWidget({ espacio, tareasHoy }: { espacio: Espacio; tarea
   const [now, setNow] = useState(Date.now());
   const [collapsed, setCollapsed] = useState(false);
   const [hydrated, setHydrated] = useState(false);
+  const [minutos, setMinutos] = useState(DURACION_TRABAJO);
   const audioFiredRef = useRef(false);
   const { corner, cycle } = useFloatingCorner();
 
@@ -133,9 +134,9 @@ export function PomodoroWidget({ espacio, tareasHoy }: { espacio: Espacio; tarea
   // Early return DESPUÉS de todos los hooks
   if (!hydrated) return null;
 
-  async function iniciar(tareaId: string | null, tipo: "trabajo" | "descanso") {
+  async function iniciar(tareaId: string | null, tipo: "trabajo" | "descanso", duracionCustom?: number) {
     const tarea = tareaId ? tareasHoy.find(t => t.id === tareaId) ?? null : null;
-    const dur = tipo === "trabajo" ? DURACION_TRABAJO : DURACION_DESCANSO;
+    const dur = duracionCustom ?? (tipo === "trabajo" ? minutos : DURACION_DESCANSO);
     const inicio = Date.now();
     // Crear sesión en BD
     const { data } = await supabase.from("pomodoro_sesiones").insert({
@@ -228,6 +229,40 @@ export function PomodoroWidget({ espacio, tareasHoy }: { espacio: Espacio; tarea
             </p>
           )}
         </div>
+
+        {/* Duración personalizable */}
+        <div>
+          <label className="text-xs text-muted-foreground">Duración (minutos)</label>
+          <div className="flex flex-wrap gap-1 mt-1">
+            {[15, 25, 50, 90].map(m => (
+              <button
+                key={m}
+                onClick={() => setMinutos(m)}
+                className={cn(
+                  "px-2.5 py-1 rounded-md text-xs font-medium border transition",
+                  minutos === m
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card border-input text-muted-foreground hover:border-primary/40"
+                )}
+              >
+                {m}
+              </button>
+            ))}
+            <input
+              type="number"
+              min={1}
+              max={600}
+              value={minutos}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                if (Number.isFinite(v)) setMinutos(Math.max(1, Math.min(600, Math.floor(v))));
+              }}
+              className="w-16 h-7 rounded-md border border-input bg-background px-2 text-sm text-center tabular-nums"
+              title="Minutos personalizados (1–600)"
+            />
+          </div>
+        </div>
+
         <Button
           className="w-full"
           onClick={() => {
@@ -235,7 +270,7 @@ export function PomodoroWidget({ espacio, tareasHoy }: { espacio: Espacio; tarea
             iniciar(sel?.value || null, "trabajo");
           }}
         >
-          <Play className="h-4 w-4 mr-1" /> Iniciar 25min
+          <Play className="h-4 w-4 mr-1" /> Iniciar {minutos}min
         </Button>
       </div>
     );
