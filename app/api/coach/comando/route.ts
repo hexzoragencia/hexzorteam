@@ -377,6 +377,39 @@ encima de lo que aguanta el producto ($Y). Toca bajar pauta o subir precio."
 Amigo colombiano, mentor de performance marketing. Directo, números claros.
 `;
 
+// ============================================================
+// Prompt para sección PÁGINAS GANADORAS
+// ============================================================
+const SYSTEM_PAGINAS = `
+=========================================================
+MODO ACTUAL: PÁGINAS GANADORAS (espiar competencia)
+=========================================================
+Estás en "Páginas Ganadoras". El user guarda tiendas/landings de referencia
+y sus bibliotecas de anuncios Meta para espiar creativos y ofertas.
+
+# TOOL
+- agregar_pagina_ganadora(pais, url, url_meta_ads, titulo, observacion)
+
+# CÓMO ACTUAR
+- Si el user pega un link de una tienda: agrégalo como url.
+- Si pega un link de facebook.com/ads/library: agrégalo como url_meta_ads.
+- Si pega ambos, ponlos en sus campos.
+- Detecta el país si lo menciona ("esta es de México" → pais MX). Si no, deja CO.
+- Saca el nombre de la marca del dominio si no lo dan (tiendavalkyria.com → "Tienda Valkyria").
+- Si sube CAPTURA de una tienda o de Meta Ads Library: identifica el dominio/marca
+  visible y, si hay URL legible, agrégala. Si no se ve la URL completa, pregunta.
+- NUNCA inventes URLs. Si no hay link, pide el link.
+
+# EJEMPLOS
+- "guarda esta tienda tiendavalkyria.com es de colombia, buena oferta de 2x1"
+  → agregar_pagina_ganadora(pais:"CO", url:"tiendavalkyria.com", titulo:"Tienda Valkyria", observacion:"Oferta 2x1")
+- "mira los anuncios de esta marca: facebook.com/ads/library/?id=123"
+  → agregar_pagina_ganadora(url_meta_ads:"https://facebook.com/ads/library/?id=123")
+
+# TONO
+Amigo colombiano, mentor de e-commerce. Corto y al grano.
+`;
+
 
 const tools: any[] = [
   {
@@ -733,6 +766,27 @@ const tools: any[] = [
   },
 
   // ============================================================
+  // PÁGINAS GANADORAS
+  // ============================================================
+  {
+    type: "function",
+    function: {
+      name: "agregar_pagina_ganadora",
+      description: "Agrega una página/tienda ganadora de referencia. Úsala cuando el user pasa un link de una tienda o de Meta Ads Library, o sube captura de una landing/biblioteca de anuncios. Necesita al menos una URL (dominio o Meta Ads).",
+      parameters: {
+        type: "object",
+        properties: {
+          pais: { type: "string", enum: ["CO","MX","EC","PE","GT","ES","CL","USA","VARIAS","CONOCIDAS","OTRO"], description: "País de la página. Default CO si no se sabe." },
+          url: { type: "string", description: "Dominio/URL de la tienda (ej: tiendavalkyria.com)" },
+          url_meta_ads: { type: "string", description: "URL de la biblioteca de anuncios Meta (facebook.com/ads/library/...)" },
+          titulo: { type: "string", description: "Nombre de la tienda/marca" },
+          observacion: { type: "string", description: "Por qué es interesante: ángulo, oferta, qué replicar" },
+        },
+      },
+    },
+  },
+
+  // ============================================================
   // TAREAS EMPRESARIALES (módulo del equipo)
   // ============================================================
   {
@@ -871,6 +925,9 @@ export async function POST(req: Request) {
     }
     if (tipoEspacio === "empresarial" && seccion === "campanas") {
       systemMessages.push({ role: "system", content: SYSTEM_CAMPANAS });
+    }
+    if (tipoEspacio === "empresarial" && seccion === "paginas") {
+      systemMessages.push({ role: "system", content: SYSTEM_PAGINAS });
     }
     systemMessages.push({
       role: "system",
@@ -1474,6 +1531,33 @@ Utilidad por pedido: $${Number((m as any).utilidad_por_pedido ?? 0).toLocaleStri
     if (error) throw new Error(error.message);
     const cambios = Object.keys(updates).filter(k => k !== "espacio_id").join(", ");
     return `🎯 Metas actualizadas (${cambios}).`;
+  }
+
+  // ============================================================
+  // PÁGINAS GANADORAS — handler
+  // ============================================================
+  if (fn === "agregar_pagina_ganadora") {
+    const fixUrl = (u: any) => {
+      const t = String(u ?? "").trim();
+      if (!t) return null;
+      return /^https?:\/\//.test(t) ? t : "https://" + t;
+    };
+    const url = fixUrl(args.url);
+    const urlMeta = fixUrl(args.url_meta_ads);
+    if (!url && !urlMeta) {
+      return "Necesito al menos un link (la tienda o la biblioteca de anuncios Meta). ¿Me lo pasas?";
+    }
+    const { error } = await sb.from("emp_paginas").insert({
+      espacio_id: espacioId,
+      pais: args.pais || "CO",
+      url,
+      url_meta_ads: urlMeta,
+      titulo: args.titulo || null,
+      observacion: args.observacion || null,
+    });
+    if (error) throw new Error(error.message);
+    const nombre = args.titulo || (url ?? urlMeta ?? "").replace(/^https?:\/\//, "");
+    return `🌐 Agregué "${nombre}" a Páginas Ganadoras${args.pais ? ` (${args.pais})` : ""}.`;
   }
 
   // ============================================================
