@@ -206,6 +206,13 @@ OBSERVACIONES:
 3c. **REFERENCIA / COMPETENCIA**: si el user dice "esto es de referencia",
    "míralo como competencia", "este es el producto que quiero copiar" y manda
    un link → ponlo en link_referencia.
+3d. **PROVEEDOR (SIEMPRE en capturas de Dropi)**: en Dropi el proveedor aparece
+   en la sección "Vendido por:" — el nombre de la tienda/fabricante (ej:
+   "Vendido por: Fabricalzado" → proveedor = "Fabricalzado"). SIEMPRE extrae ese
+   nombre y ponlo en el campo proveedor. Está debajo del producto, junto a
+   "Verificado" y "Bodegas: ...". Si ves "Bodegas: BOGOTA, FLORIDABLANCA..."
+   esas son las ciudades del proveedor (puedes mencionarlas en observacion).
+   Nunca dejes el proveedor vacío si la captura de Dropi muestra "Vendido por".
 4. Antes de crear/actualizar, RESUME en lenguaje natural lo que extrajiste y los campos FALTANTES, y propón la acción. Usa 'conversar' para eso.
 5. Si el user dice "sí, créalo" o "dale, créalo" o similar, AHÍ SÍ llamas a crear_producto con los datos extraídos.
 6. Si el user pide directamente "crea este producto y luego me dices qué falta", puedes crear de una y mencionar qué quedó vacío.
