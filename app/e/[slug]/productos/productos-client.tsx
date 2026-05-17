@@ -21,6 +21,7 @@ type Producto = {
   costo_proveedor: number | null; precio_final: number | null;
   precio_2und: number | null; precio_x3: number | null; stock: number | null;
   link_landing: string | null; link_drive: string | null; link_creativos: string | null;
+  dropi_url: string | null; link_referencia: string | null;
   plataforma: string | null; tipo: string | null;
   estado: "nuevo" | "testeo" | "aprendizaje" | "validado" | "winner" | "descartado" | "apagado";
   fecha_activacion_tt: string | null; fecha_activacion_fb: string | null;
@@ -62,6 +63,22 @@ function getEstado(v?: string) {
 function calcMargen(precio?: number | null, costo?: number | null): number | null {
   if (!precio || !costo || precio <= 0) return null;
   return Math.round(((precio - costo) / precio) * 100);
+}
+
+// Dropi: acepta una URL completa o solo el ID numérico.
+// Devuelve el href clickeable y la etiqueta (ID si se puede extraer).
+function dropiHref(v: string | null): string | null {
+  if (!v) return null;
+  const t = v.trim();
+  if (!t) return null;
+  if (/^https?:\/\//i.test(t)) return t;
+  if (/^\d+$/.test(t)) return `https://app.dropi.co/dashboard/product-details/${t}`;
+  return "https://" + t;
+}
+function dropiLabel(v: string | null): string {
+  if (!v) return "Dropi";
+  const m = v.match(/(\d{3,})/);
+  return m ? `Dropi #${m[1]}` : "Dropi";
 }
 
 function iniciales(nombre?: string): string {
@@ -140,6 +157,8 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
       link_landing: form.link_landing || null,
       link_drive: form.link_drive || null,
       link_creativos: form.link_creativos || null,
+      dropi_url: form.dropi_url?.trim() || null,
+      link_referencia: form.link_referencia?.trim() || null,
       plataforma: form.plataforma || null,
       tipo: form.tipo || "dropshipping",
       estado: form.estado || "testeo",
@@ -486,7 +505,7 @@ function ProductoCard({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
   const Icon = e.icon;
   const pais = PAISES.find(c => c.value === p.pais);
   const margen = calcMargen(p.precio_final, p.costo_proveedor);
-  const tieneLinks = !!(p.link_landing || p.link_drive || p.link_creativos);
+  const tieneLinks = !!(p.link_landing || p.link_drive || p.link_creativos || p.dropi_url || p.link_referencia);
 
   return (
     <div className="group relative rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all">
@@ -596,6 +615,8 @@ function ProductoCard({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
             {p.link_landing && <LinkIcon2 href={p.link_landing} label="Landing" color="bg-blue-500/15 text-blue-600 dark:text-blue-400" />}
             {p.link_drive && <LinkIcon2 href={p.link_drive} label="Drive" color="bg-amber-500/15 text-amber-600 dark:text-amber-400" />}
             {p.link_creativos && <LinkIcon2 href={p.link_creativos} label="Creativos" color="bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" />}
+            {p.dropi_url && <LinkIcon2 href={dropiHref(p.dropi_url)!} label={dropiLabel(p.dropi_url)} color="bg-orange-500/15 text-orange-600 dark:text-orange-400" />}
+            {p.link_referencia && <LinkIcon2 href={p.link_referencia} label="Referencia" color="bg-violet-500/15 text-violet-600 dark:text-violet-400" />}
             {!tieneLinks && (
               <span className="text-[10px] text-muted-foreground/60 italic">Sin links</span>
             )}
@@ -627,7 +648,7 @@ function ProductoFila({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
   const Icon = e.icon;
   const pais = PAISES.find(c => c.value === p.pais);
   const margen = calcMargen(p.precio_final, p.costo_proveedor);
-  const tieneLinks = !!(p.link_landing || p.link_drive || p.link_creativos);
+  const tieneLinks = !!(p.link_landing || p.link_drive || p.link_creativos || p.dropi_url || p.link_referencia);
 
   return (
     <div className="group relative rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all flex items-stretch">
@@ -705,7 +726,9 @@ function ProductoFila({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
           {p.link_landing && <LinkIcon2 href={p.link_landing} label="Land" color="bg-blue-500/15 text-blue-600 dark:text-blue-400" />}
           {p.link_drive && <LinkIcon2 href={p.link_drive} label="Drive" color="bg-amber-500/15 text-amber-600 dark:text-amber-400" />}
           {p.link_creativos && <LinkIcon2 href={p.link_creativos} label="Creat" color="bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" />}
-          {!tieneLinks && <span className="text-[10px] text-muted-foreground/50 italic">Sin links</span>}
+          {p.dropi_url && <LinkIcon2 href={dropiHref(p.dropi_url)!} label={dropiLabel(p.dropi_url)} color="bg-orange-500/15 text-orange-600 dark:text-orange-400" />}
+          {p.link_referencia && <LinkIcon2 href={p.link_referencia} label="Ref." color="bg-violet-500/15 text-violet-600 dark:text-violet-400" />}
+          {!tieneLinks && !p.dropi_url && !p.link_referencia && <span className="text-[10px] text-muted-foreground/50 italic">Sin links</span>}
         </div>
 
         {/* Acciones */}
@@ -987,6 +1010,22 @@ function FormularioProducto({ form, setForm, editing, saving, moneda, miembros, 
                 value={form.link_creativos ?? ""}
                 onChange={(e) => setForm({ ...form, link_creativos: e.target.value })}
                 placeholder="https://..."
+                className="h-10"
+              />
+            </Campo>
+            <Campo label="Producto en Dropi (link o ID)">
+              <Input
+                value={form.dropi_url ?? ""}
+                onChange={(e) => setForm({ ...form, dropi_url: e.target.value })}
+                placeholder="https://app.dropi.co/... o el ID"
+                className="h-10"
+              />
+            </Campo>
+            <Campo label="Referencia / competencia (link)">
+              <Input
+                value={form.link_referencia ?? ""}
+                onChange={(e) => setForm({ ...form, link_referencia: e.target.value })}
+                placeholder="Link del producto de la competencia o referencia"
                 className="h-10"
               />
             </Campo>

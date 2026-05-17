@@ -199,6 +199,13 @@ OBSERVACIONES:
 1. **NO inventes datos**. Si no ves el costo del proveedor en la imagen, NO pongas un número — déjalo en blanco.
 2. Detecta qué tipo de captura es (Dropi, Shopify admin, TikTok Ad Library, Meta Ad Library, foto del producto, screenshot del proveedor).
 3. Extrae SOLO lo que VES claramente: nombre del producto, costo proveedor, precio sugerido, stock, plataforma, país.
+3b. **LINK DE DROPI**: si la captura es de Dropi y se ve la URL en la barra de
+   direcciones del navegador (ej: app.dropi.co/dashboard/product-details/12345),
+   cópiala TAL CUAL en el campo dropi_url. Si solo ves el ID del producto, ponlo
+   en dropi_url (el sistema arma el link). No inventes IDs ni URLs.
+3c. **REFERENCIA / COMPETENCIA**: si el user dice "esto es de referencia",
+   "míralo como competencia", "este es el producto que quiero copiar" y manda
+   un link → ponlo en link_referencia.
 4. Antes de crear/actualizar, RESUME en lenguaje natural lo que extrajiste y los campos FALTANTES, y propón la acción. Usa 'conversar' para eso.
 5. Si el user dice "sí, créalo" o "dale, créalo" o similar, AHÍ SÍ llamas a crear_producto con los datos extraídos.
 6. Si el user pide directamente "crea este producto y luego me dices qué falta", puedes crear de una y mencionar qué quedó vacío.
@@ -635,6 +642,8 @@ const tools: any[] = [
           link_landing: { type: "string" },
           link_drive: { type: "string", description: "Carpeta de Drive con assets" },
           link_creativos: { type: "string" },
+          dropi_url: { type: "string", description: "Link o ID del producto en Dropi. Si en una captura de Dropi ves la URL de la barra de direcciones, ponla aquí." },
+          link_referencia: { type: "string", description: "Link de un producto de referencia o de la competencia" },
           plataforma: { type: "string", enum: ["TT", "FB", "TT+FB", "Otro"] },
           tipo: { type: "string", enum: ["dropshipping", "importacion", "local", "otro"] },
           estado: { type: "string", enum: ["nuevo", "testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Default 'nuevo' si no se especifica" },
@@ -666,6 +675,8 @@ const tools: any[] = [
           link_landing: { type: "string" },
           link_drive: { type: "string", description: "Carpeta de Drive con info y assets del producto" },
           link_creativos: { type: "string" },
+          dropi_url: { type: "string", description: "Link o ID del producto en Dropi (de la barra de direcciones de la captura)" },
+          link_referencia: { type: "string", description: "Link de referencia o de la competencia" },
           plataforma: { type: "string", enum: ["TT", "FB", "TT+FB", "Otro"] },
           fecha_activacion_tt: { type: "string", description: "Fecha YYYY-MM-DD en que se activó la pauta en TikTok" },
           fecha_activacion_fb: { type: "string", description: "Fecha YYYY-MM-DD en que se activó la pauta en Facebook" },
@@ -1361,6 +1372,8 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
       link_landing: args.link_landing || null,
       link_drive: args.link_drive || null,
       link_creativos: args.link_creativos || null,
+      dropi_url: args.dropi_url || null,
+      link_referencia: args.link_referencia || null,
       plataforma: args.plataforma || "TT+FB",
       tipo: args.tipo || "dropshipping",
       estado: args.estado || "nuevo",
@@ -1393,7 +1406,7 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
     const camposSimples = [
       "proveedor", "pais", "responsable",
       "costo_proveedor", "precio_final", "precio_2und", "precio_x3", "stock",
-      "link_landing", "link_drive", "link_creativos",
+      "link_landing", "link_drive", "link_creativos", "dropi_url", "link_referencia",
       "plataforma", "fecha_activacion_tt", "fecha_activacion_fb",
     ];
     for (const c of camposSimples) if (args[c] !== undefined && args[c] !== null) updates[c] = args[c];
