@@ -59,7 +59,8 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   const [hydrated, setHydrated] = useState(false);
   const [grabando, setGrabando] = useState(false);
   const [transcribiendo, setTranscribiendo] = useState(false);
-  const [imagenAdjunta, setImagenAdjunta] = useState<{ b64: string; preview: string } | null>(null);
+  const [imagenes, setImagenes] = useState<{ b64: string; preview: string }[]>([]);
+  const MAX_IMGS = 5;
   const [dragActivo, setDragActivo] = useState(false);
   const [oculto, setOculto] = useState(false);
   const dragCounterRef = useRef(0);
@@ -260,18 +261,41 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
     });
   }
 
+  // Comprime a ~1280px JPEG: legible para la IA y liviano para enviar/guardar.
+  async function comprimir(dataUrl: string): Promise<string> {
+    return new Promise((res) => {
+      const img = document.createElement("img");
+      img.onload = () => {
+        const max = 1280;
+        const esc = Math.min(1, max / Math.max(img.width, img.height));
+        const w = Math.round(img.width * esc), h = Math.round(img.height * esc);
+        const c = document.createElement("canvas");
+        c.width = w; c.height = h;
+        const ctx = c.getContext("2d");
+        if (!ctx) { res(dataUrl); return; }
+        ctx.drawImage(img, 0, 0, w, h);
+        res(c.toDataURL("image/jpeg", 0.85));
+      };
+      img.onerror = () => res(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
   async function procesarImagen(file: File): Promise<boolean> {
     if (!file.type.startsWith("image/")) { alert("Sube una imagen (PNG, JPG, etc)."); return false; }
-    if (file.size > 8 * 1024 * 1024) { alert("Imagen muy grande (>8 MB). Comprime y reintenta."); return false; }
-    const dataUrl = await fileToDataUrl(file);
-    setImagenAdjunta({ b64: dataUrl, preview: dataUrl });
+    if (file.size > 12 * 1024 * 1024) { alert("Imagen muy grande (>12 MB)."); return false; }
+    const raw = await fileToDataUrl(file);
+    const dataUrl = await comprimir(raw);
+    setImagenes(prev => {
+      if (prev.length >= MAX_IMGS) { alert(`Máximo ${MAX_IMGS} imágenes.`); return prev; }
+      return [...prev, { b64: dataUrl, preview: dataUrl }];
+    });
     return true;
   }
 
   async function onPickImage(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    await procesarImagen(file);
+    const files = Array.from(e.target.files ?? []);
+    for (const f of files) await procesarImagen(f);
     if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
@@ -299,21 +323,20 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
     e.preventDefault(); e.stopPropagation();
     dragCounterRef.current = 0;
     setDragActivo(false);
-    const file = e.dataTransfer?.files?.[0];
-    if (!file) return;
-    await procesarImagen(file);
+    const files = Array.from(e.dataTransfer?.files ?? []);
+    for (const f of files) await procesarImagen(f);
   }
 
   async function enviar(textoForzado?: string) {
     const t = (textoForzado ?? texto).trim();
-    if ((!t && !imagenAdjunta) || enviando) return;
+    if ((!t && imagenes.length === 0) || enviando) return;
     const idMsg = String(Date.now());
     const historial = mensajes.slice(-8).map(m => ({ rol: m.rol, texto: m.texto }));
-    const mostrarTexto = t || (imagenAdjunta ? "📷 Captura adjunta" : "");
+    const mostrarTexto = t || (imagenes.length ? `📷 ${imagenes.length} imagen${imagenes.length === 1 ? "" : "es"} adjunta${imagenes.length === 1 ? "" : "s"}` : "");
     setMensajes(m => [...m, { id: idMsg + "-u", rol: "usuario", texto: mostrarTexto, ts: Date.now() }]);
     setTexto("");
-    const imgPayload = imagenAdjunta?.b64 ?? null;
-    setImagenAdjunta(null);
+    const imgsPayload = imagenes.map(i => i.b64);
+    setImagenes([]);
     setEnviando(true);
     try {
       const res = await fetch("/api/coach/comando", {
@@ -323,7 +346,8 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
           texto: t,
           espacio_id: espacioId,
           seccion,
-          imagen_b64: imgPayload,
+          imagen_b64: imgsPayload[0] ?? null,
+          imagenes_b64: imgsPayload,
           historial,
         }),
       });
@@ -515,20 +539,33 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
         </div>
       )}
 
-      {/* PREVIEW DE IMAGEN ADJUNTA */}
-      {imagenAdjunta && (
-        <div className="px-3 pb-2">
-          <div className="relative inline-block">
-            <img src={imagenAdjunta.preview} alt="Adjunto" className="h-20 rounded-lg border border-primary/40 object-cover" />
+      {/* PREVIEWS DE IMÁGENES ADJUNTAS */}
+      {imagenes.length > 0 && (
+        <div className="px-3 pb-2 flex flex-wrap gap-2">
+          {imagenes.map((img, i) => (
+            <div key={i} className="relative">
+              <img src={img.preview} alt={`Adjunto ${i + 1}`} className="h-16 w-16 rounded-lg border border-primary/40 object-cover" />
+              <span className="absolute bottom-0.5 left-0.5 text-[9px] bg-foreground/70 text-background px-1 rounded">{i + 1}</span>
+              <button
+                type="button"
+                onClick={() => setImagenes(prev => prev.filter((_, idx) => idx !== i))}
+                className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center shadow"
+                title="Quitar"
+              >
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          ))}
+          {imagenes.length < MAX_IMGS && (
             <button
               type="button"
-              onClick={() => setImagenAdjunta(null)}
-              className="absolute -top-1.5 -right-1.5 h-5 w-5 rounded-full bg-destructive text-white flex items-center justify-center shadow"
-              title="Quitar imagen"
+              onClick={() => fileInputRef.current?.click()}
+              className="h-16 w-16 rounded-lg border-2 border-dashed border-border flex items-center justify-center text-muted-foreground hover:border-primary/40 hover:text-primary transition"
+              title="Agregar otra imagen"
             >
-              <X className="h-3 w-3" />
+              <ImagePlus className="h-5 w-5" />
             </button>
-          </div>
+          )}
         </div>
       )}
 
@@ -541,6 +578,7 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
           ref={fileInputRef}
           type="file"
           accept="image/*"
+          multiple
           onChange={onPickImage}
           className="hidden"
         />
@@ -560,7 +598,7 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
           ref={inputRef}
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          placeholder={grabando ? "🎙️ Grabando..." : transcribiendo ? "Transcribiendo..." : imagenAdjunta ? "Describe la imagen o solo envía" : seccion === "productos" ? "Pega captura o describe producto…" : "Escribe o mic 🎤"}
+          placeholder={grabando ? "🎙️ Grabando..." : transcribiendo ? "Transcribiendo..." : imagenes.length ? "Describe o solo envía" : seccion === "productos" ? "Pega captura o describe producto…" : "Escribe o mic 🎤"}
           disabled={enviando || grabando || transcribiendo}
           className="text-sm h-10"
         />
@@ -579,7 +617,7 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
            <Mic className="h-4 w-4" />}
         </Button>
         {/* Botón enviar */}
-        <Button type="submit" size="icon" disabled={enviando || grabando || transcribiendo || (!texto.trim() && !imagenAdjunta)} className="h-10 w-10 shrink-0">
+        <Button type="submit" size="icon" disabled={enviando || grabando || transcribiendo || (!texto.trim() && imagenes.length === 0)} className="h-10 w-10 shrink-0">
           {enviando ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
         </Button>
       </form>

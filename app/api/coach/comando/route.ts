@@ -221,6 +221,18 @@ OBSERVACIONES:
 - "cambia la observación a", "la nota ahora es", "reemplaza la nota"
   → observacion (sobrescribe)
 
+# VARIAS IMÁGENES A LA VEZ
+El usuario puede mandar 2+ imágenes juntas. Típicamente:
+- Una es el PANTALLAZO DE DATOS (Dropi/Shopify): de ahí sacas nombre, costo,
+  proveedor, stock, país, link de Dropi.
+- Otra es la FOTO LIMPIA DEL PRODUCTO (recortada, fondo limpio, sin UI): esa
+  NO tiene datos, es solo la imagen del producto para mostrarla en la tarjeta.
+Identifica cuál es cuál. Cuando llames crear_producto o actualizar_producto,
+pon imagen_indice = el número (1-based, en el orden enviado) de la FOTO LIMPIA
+del producto. Los datos los extraes del pantallazo, la foto va por imagen_indice.
+Si solo hay una imagen y es la foto limpia (no tiene datos), igual usa imagen_indice=1.
+Si solo hay pantallazo de datos (sin foto limpia aparte), NO pongas imagen_indice.
+
 # REGLAS CRÍTICAS AL LEER CAPTURAS
 1. **NO inventes datos**. Si no ves el costo del proveedor en la imagen, NO pongas un número — déjalo en blanco.
 1b. **EL PRECIO DE DROPI ES EL COSTO, NO EL PRECIO DE VENTA**. El número/precio
@@ -683,6 +695,7 @@ const tools: any[] = [
           dropi_url: { type: "string", description: "Link o ID del producto en Dropi. Si en una captura de Dropi ves la URL de la barra de direcciones, ponla aquí." },
           link_referencia: { type: "string", description: "Link de un producto de referencia o de la competencia" },
           imagen_url: { type: "string", description: "URL pública de la foto del producto si el usuario la pega como link (no inventes una)." },
+          imagen_indice: { type: "integer", description: "Si el usuario adjuntó VARIAS imágenes y una es la FOTO LIMPIA del producto (no el pantallazo de datos), pon aquí su número (1 = primera imagen enviada). El sistema la guardará como foto del producto." },
           plataforma: { type: "string", enum: ["TT", "FB", "TT+FB", "Otro"] },
           tipo: { type: "string", enum: ["dropshipping", "importacion", "local", "otro"] },
           estado: { type: "string", enum: ["nuevo", "testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Default 'nuevo' si no se especifica" },
@@ -717,6 +730,7 @@ const tools: any[] = [
           dropi_url: { type: "string", description: "Link o ID del producto en Dropi (de la barra de direcciones de la captura)" },
           link_referencia: { type: "string", description: "Link de referencia o de la competencia" },
           imagen_url: { type: "string", description: "URL pública de la foto del producto si el usuario la pega como link" },
+          imagen_indice: { type: "integer", description: "Número (1-based) de la imagen adjunta que es la FOTO LIMPIA del producto, si aplica." },
           plataforma: { type: "string", enum: ["TT", "FB", "TT+FB", "Otro"] },
           fecha_activacion_tt: { type: "string", description: "Fecha YYYY-MM-DD en que se activó la pauta en TikTok" },
           fecha_activacion_fb: { type: "string", description: "Fecha YYYY-MM-DD en que se activó la pauta en Facebook" },
@@ -925,8 +939,11 @@ export async function POST(req: Request) {
     const body = await req.json();
     const texto: string = String(body.texto ?? "").trim();
     const seccion: string = String(body.seccion ?? "").toLowerCase();
-    const imagenB64: string | null = body.imagen_b64 ?? null;
-    if (!texto && !imagenB64) return NextResponse.json({ error: "vacío" }, { status: 400 });
+    // Soporta varias imágenes (imagenes_b64) o una sola (imagen_b64, compat).
+    const imagenesB64: string[] = Array.isArray(body.imagenes_b64) && body.imagenes_b64.length
+      ? body.imagenes_b64
+      : (body.imagen_b64 ? [body.imagen_b64] : []);
+    if (!texto && imagenesB64.length === 0) return NextResponse.json({ error: "vacío" }, { status: 400 });
 
     let espacioId: string | null = body.espacio_id ?? null;
     if (espacioId) {
@@ -999,16 +1016,21 @@ export async function POST(req: Request) {
     });
 
     // Construir el contenido del último mensaje del usuario.
-    // Si viene imagen, usar formato multimodal de gpt-4o.
+    // Si vienen imágenes, formato multimodal de gpt-4o (varias soportadas).
     let userContent: any = texto || "(adjuntó una imagen)";
-    if (imagenB64) {
-      const dataUrl = imagenB64.startsWith("data:")
-        ? imagenB64
-        : `data:image/png;base64,${imagenB64}`;
-      userContent = [
-        { type: "text", text: texto || "Analiza esta captura y extrae los datos del producto." },
-        { type: "image_url", image_url: { url: dataUrl, detail: "high" } },
-      ];
+    if (imagenesB64.length > 0) {
+      const partes: any[] = [{
+        type: "text",
+        text: (texto || "Analiza estas imágenes y extrae los datos del producto.")
+          + (imagenesB64.length > 1
+            ? `\n\n[Hay ${imagenesB64.length} imágenes adjuntas, numeradas del 1 al ${imagenesB64.length} en el orden enviado. Una puede ser un pantallazo con DATOS (Dropi/Shopify) y otra la FOTO LIMPIA del producto. Para guardar la foto del producto, indica imagen_indice (1-based) en la herramienta.]`
+            : ""),
+      }];
+      imagenesB64.forEach((img: string) => {
+        const dataUrl = img.startsWith("data:") ? img : `data:image/png;base64,${img}`;
+        partes.push({ type: "image_url", image_url: { url: dataUrl, detail: "high" } });
+      });
+      userContent = partes;
     }
 
     // Llamar OpenAI con function calling
@@ -1038,7 +1060,7 @@ export async function POST(req: Request) {
       acciones.push({ fn, args });
 
       try {
-        const r = await ejecutarAccion(supabase, espacioId, fn, args, texto);
+        const r = await ejecutarAccion(supabase, espacioId, fn, args, texto, imagenesB64);
         if (r) resultados.push(r);
       } catch (e: any) {
         resultados.push(`⚠️ ${e.message ?? "error en " + fn}`);
@@ -1060,7 +1082,16 @@ export async function POST(req: Request) {
   }
 }
 
-async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any, textoOriginal: string): Promise<string> {
+// Devuelve el data URL de la imagen adjunta en el índice 1-based indicado.
+function imagenPorIndice(indice: any, imagenes: string[]): string | null {
+  const i = Number(indice);
+  if (!i || !Number.isFinite(i) || !imagenes?.length) return null;
+  const img = imagenes[i - 1];
+  if (!img) return null;
+  return img.startsWith("data:") ? img : `data:image/jpeg;base64,${img}`;
+}
+
+async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any, textoOriginal: string, imagenes: string[] = []): Promise<string> {
   if (fn === "conversar") return args.respuesta || "Cuéntame más.";
 
   if (fn === "crear_transaccion") {
@@ -1414,7 +1445,7 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
       link_creativos: args.link_creativos || null,
       dropi_url: args.dropi_url || null,
       link_referencia: args.link_referencia || null,
-      imagen_url: args.imagen_url || null,
+      imagen_url: imagenPorIndice(args.imagen_indice, imagenes) || args.imagen_url || null,
       plataforma: args.plataforma || "TT+FB",
       tipo: args.tipo || "dropshipping",
       estado: args.estado || "nuevo",
@@ -1460,6 +1491,9 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
       "plataforma", "fecha_activacion_tt", "fecha_activacion_fb",
     ];
     for (const c of camposSimples) if (args[c] !== undefined && args[c] !== null) updates[c] = args[c];
+    // Si indicó cuál imagen adjunta es la foto del producto, usarla
+    const imgElegida = imagenPorIndice(args.imagen_indice, imagenes);
+    if (imgElegida) updates.imagen_url = imgElegida;
     // observacion (reemplazar) tiene prioridad sobre observacion_append
     if (args.observacion !== undefined && args.observacion !== null) {
       updates.observacion = args.observacion;
