@@ -22,6 +22,7 @@ type Producto = {
   precio_2und: number | null; precio_x3: number | null; stock: number | null;
   link_landing: string | null; link_drive: string | null; link_creativos: string | null;
   dropi_url: string | null; link_referencia: string | null;
+  imagen_url: string | null;
   plataforma: string | null; tipo: string | null;
   estado: "nuevo" | "testeo" | "aprendizaje" | "validado" | "winner" | "descartado" | "apagado";
   fecha_activacion_tt: string | null; fecha_activacion_fb: string | null;
@@ -79,6 +80,32 @@ function dropiLabel(v: string | null): string {
   if (!v) return "Dropi";
   const m = v.match(/(\d{3,})/);
   return m ? `Dropi #${m[1]}` : "Dropi";
+}
+
+// Comprime una imagen a miniatura (~320px, JPEG) para guardarla liviana.
+async function comprimirImagen(file: File, max = 320): Promise<string> {
+  const dataUrl: string = await new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(String(r.result));
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+  return new Promise((res) => {
+    const img = new Image();
+    img.onload = () => {
+      const escala = Math.min(1, max / Math.max(img.width, img.height));
+      const w = Math.round(img.width * escala);
+      const h = Math.round(img.height * escala);
+      const c = document.createElement("canvas");
+      c.width = w; c.height = h;
+      const ctx = c.getContext("2d");
+      if (!ctx) { res(dataUrl); return; }
+      ctx.drawImage(img, 0, 0, w, h);
+      res(c.toDataURL("image/jpeg", 0.82));
+    };
+    img.onerror = () => res(dataUrl);
+    img.src = dataUrl;
+  });
 }
 
 function iniciales(nombre?: string): string {
@@ -159,6 +186,7 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
       link_creativos: form.link_creativos || null,
       dropi_url: form.dropi_url?.trim() || null,
       link_referencia: form.link_referencia?.trim() || null,
+      imagen_url: form.imagen_url?.trim() || null,
       plataforma: form.plataforma || null,
       tipo: form.tipo || "dropshipping",
       estado: form.estado || "testeo",
@@ -513,13 +541,18 @@ function ProductoCard({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
       <div className={cn("h-1 w-full", e.bar)}></div>
 
       <div className="p-4 space-y-3">
-        {/* Cabecera: nombre + estado + menú */}
+        {/* Cabecera: foto + nombre + estado + menú */}
         <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 flex-1">
-            <h3 className="font-semibold text-[15px] leading-tight truncate">{p.nombre}</h3>
-            <div className={cn("inline-flex items-center gap-1 mt-1 text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded", e.bg, e.text)}>
-              <Icon className="h-2.5 w-2.5" />
-              {e.label}
+          <div className="min-w-0 flex-1 flex items-start gap-2.5">
+            {p.imagen_url && (
+              <img src={p.imagen_url} alt="" className="w-10 h-10 rounded-lg object-cover border border-border shrink-0" />
+            )}
+            <div className="min-w-0">
+              <h3 className="font-semibold text-[15px] leading-tight truncate">{p.nombre}</h3>
+              <div className={cn("inline-flex items-center gap-1 mt-1 text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded", e.bg, e.text)}>
+                <Icon className="h-2.5 w-2.5" />
+                {e.label}
+              </div>
             </div>
           </div>
           <div className="relative shrink-0" onClick={(ev) => ev.stopPropagation()}>
@@ -657,12 +690,17 @@ function ProductoFila({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
 
       <div className="flex-1 min-w-0 p-3.5 flex flex-col lg:flex-row lg:items-center gap-3 overflow-hidden">
 
-        {/* Nombre + estado */}
-        <div className="min-w-0 lg:basis-[22%] lg:max-w-[22%]">
-          <h3 className="font-semibold text-[15px] leading-tight truncate">{p.nombre}</h3>
-          <div className={cn("inline-flex items-center gap-1 mt-1 text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded", e.bg, e.text)}>
-            <Icon className="h-2.5 w-2.5" />
-            {e.label}
+        {/* Foto + nombre + estado */}
+        <div className="min-w-0 lg:basis-[22%] lg:max-w-[22%] flex items-start gap-2.5">
+          {p.imagen_url && (
+            <img src={p.imagen_url} alt="" className="w-10 h-10 rounded-lg object-cover border border-border shrink-0" />
+          )}
+          <div className="min-w-0">
+            <h3 className="font-semibold text-[15px] leading-tight truncate">{p.nombre}</h3>
+            <div className={cn("inline-flex items-center gap-1 mt-1 text-[10px] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded", e.bg, e.text)}>
+              <Icon className="h-2.5 w-2.5" />
+              {e.label}
+            </div>
           </div>
         </div>
 
@@ -918,6 +956,39 @@ function FormularioProducto({ form, setForm, editing, saving, moneda, miembros, 
                 onChange={(e) => setForm({ ...form, stock: e.target.value === "" ? null : Number(e.target.value) })}
                 className="h-10 tabular-nums"
               />
+            </Campo>
+            <Campo label="Foto del producto">
+              <div className="flex items-center gap-3">
+                {form.imagen_url ? (
+                  <img src={form.imagen_url} alt="" className="w-12 h-12 rounded-lg object-cover border border-border shrink-0" />
+                ) : (
+                  <div className="w-12 h-12 rounded-lg bg-muted border border-dashed border-border flex items-center justify-center shrink-0">
+                    <Package className="h-5 w-5 text-muted-foreground/40" />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      const thumb = await comprimirImagen(f);
+                      setForm({ ...form, imagen_url: thumb });
+                    }}
+                    className="block w-full text-xs text-muted-foreground file:mr-2 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-primary/10 file:text-primary file:text-xs file:font-medium hover:file:bg-primary/20 file:cursor-pointer"
+                  />
+                  {form.imagen_url && (
+                    <button
+                      type="button"
+                      onClick={() => setForm({ ...form, imagen_url: "" })}
+                      className="text-[11px] text-destructive hover:underline mt-1"
+                    >
+                      Quitar foto
+                    </button>
+                  )}
+                </div>
+              </div>
             </Campo>
           </div>
         </Section>
