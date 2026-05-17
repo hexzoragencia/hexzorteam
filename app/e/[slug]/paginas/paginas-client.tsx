@@ -42,6 +42,33 @@ function paisMeta(v: string) {
   return PAISES.find(p => p.value === v) ?? PAISES[PAISES.length - 1];
 }
 
+// Códigos de país que entiende Meta Ads Library (ISO-2). El resto → ALL.
+const META_PAIS: Record<string, string> = {
+  CO: "CO", MX: "MX", EC: "EC", PE: "PE", GT: "GT", ES: "ES", CL: "CL", USA: "US",
+};
+
+// Genera el link de BÚSQUEDA en la biblioteca de anuncios de Meta a partir
+// del dominio o el título, para encontrar sus anuncios directamente aunque
+// no se haya guardado el link explícito.
+function buscarEnMetaAds(p: { url: string | null; titulo: string | null; pais: string }): string | null {
+  // Término: el dominio sin protocolo/www/TLD, o el título
+  let termino = "";
+  if (p.url) {
+    termino = p.url
+      .replace(/^https?:\/\//, "")
+      .replace(/^www\./, "")
+      .split("/")[0]
+      .replace(/\.(com|net|co|shop|store|io|mx|es|cl|pe)(\.[a-z]{2})?$/i, "")
+      .replace(/[-_.]/g, " ")
+      .trim();
+  }
+  if (!termino && p.titulo) termino = p.titulo.trim();
+  if (!termino) return null;
+  const country = META_PAIS[p.pais] ?? "ALL";
+  const q = encodeURIComponent(termino);
+  return `https://www.facebook.com/ads/library/?active_status=all&ad_type=all&country=${country}&q=${q}&search_type=keyword_unordered&media_type=all`;
+}
+
 export function PaginasClient({ espacioId, initial }: { espacioId: string; initial: Pagina[] }) {
   const router = useRouter();
   const supabase = createClient();
@@ -356,7 +383,7 @@ export function PaginasClient({ espacioId, initial }: { espacioId: string; initi
                             onCopy={() => copiar(p.url!)}
                           />
                         )}
-                        {p.url_meta_ads && (
+                        {p.url_meta_ads ? (
                           <LinkAccion
                             href={p.url_meta_ads}
                             icon={<Megaphone className="h-3.5 w-3.5" />}
@@ -365,6 +392,20 @@ export function PaginasClient({ espacioId, initial }: { espacioId: string; initi
                             color="blue"
                             onCopy={() => copiar(p.url_meta_ads!)}
                           />
+                        ) : (
+                          (() => {
+                            const buscarUrl = buscarEnMetaAds(p);
+                            return buscarUrl ? (
+                              <LinkAccion
+                                href={buscarUrl}
+                                icon={<Megaphone className="h-3.5 w-3.5" />}
+                                label="Buscar en Meta Ads"
+                                sub="Anuncios de este dominio"
+                                color="blue"
+                                onCopy={() => copiar(buscarUrl)}
+                              />
+                            ) : null;
+                          })()
                         )}
                       </div>
 
