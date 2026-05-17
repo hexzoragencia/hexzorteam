@@ -48,7 +48,7 @@ export default async function EspacioLayout({
       <AparienciaApplier prefs={prefsEspacio} />
       <Nav espacioActual={espacio} espacios={espacios} userEmail={user?.email} />
       <main className="md:pl-64">
-        <div className="p-4 md:p-8 max-w-[1400px] mx-auto">{children}</div>
+        <div className="p-4 md:p-8 max-w-[1200px] mx-auto">{children}</div>
       </main>
       {/* Pomodoro: en ambos espacios */}
       <PomodoroWidget espacio={espacio} tareasHoy={tareasHoy} />

@@ -6,7 +6,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
-import { Send, X, Loader2, Sparkles, MessageCircle, Mic, Square, ImagePlus } from "lucide-react";
+import { Send, X, Loader2, Sparkles, MessageCircle, Mic, Square, ImagePlus, EyeOff } from "lucide-react";
 import { useFloatingCorner, cornerClasses } from "./floating-pos";
 
 // Detecta la sección a partir del pathname.
@@ -66,15 +66,22 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
   const dragCounterRef = useRef(0);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // El coach SIEMPRE visible: limpiamos cualquier estado "oculto" viejo
-  // (la función de ocultar causaba que se perdiera el muñeco).
+  // Hidratar estado oculto persistido
   useEffect(() => {
-    try { localStorage.removeItem(OCULTO_KEY); } catch { /* ignore */ }
-    setOculto(false);
+    try {
+      if (localStorage.getItem(OCULTO_KEY) === "1") setOculto(true);
+    } catch { /* ignore */ }
   }, []);
 
-  function ocultarCoach() { /* deshabilitado: el coach siempre visible */ }
-  function mostrarCoach() { setOculto(false); }
+  function ocultarCoach() {
+    setOculto(true);
+    setOpen(false);
+    try { localStorage.setItem(OCULTO_KEY, "1"); } catch { /* ignore */ }
+  }
+  function mostrarCoach() {
+    setOculto(false);
+    try { localStorage.setItem(OCULTO_KEY, "0"); } catch { /* ignore */ }
+  }
   // Drag & drop libre para el muñeco cuando está cerrado
   const [pos, setPos] = useState<{ x: number; y: number } | null>(null);
   const draggingRef = useRef(false);
@@ -369,12 +376,12 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
     return (
       <button
         onClick={mostrarCoach}
-        className="fixed bottom-4 right-4 z-50 h-11 w-11 rounded-full bg-card border-2 border-primary/40 shadow-lg flex items-center justify-center hover:bg-primary/10 hover:border-primary transition group"
+        className="fixed bottom-4 right-4 z-[60] h-11 px-4 rounded-full bg-primary text-primary-foreground shadow-xl shadow-primary/30 flex items-center gap-2 hover:opacity-90 transition brand-glow"
         title="Mostrar coach IA"
         aria-label="Mostrar coach IA"
       >
-        <Sparkles className="h-5 w-5 text-primary group-hover:scale-110 transition-transform" />
-        <span className="absolute -top-1 -right-1 h-2.5 w-2.5 rounded-full bg-primary animate-pulse"></span>
+        <Sparkles className="h-4 w-4" />
+        <span className="text-sm font-medium">Ver coach</span>
       </button>
     );
   }
@@ -478,6 +485,9 @@ export function CoachChat({ espacioId }: { espacioId?: string } = {}) {
         </div>
         <button onClick={limpiar} className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted" title="Limpiar conversación">
           <Sparkles className="h-4 w-4" />
+        </button>
+        <button onClick={ocultarCoach} className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted" title="Ocultar coach (reaparece con el botón 'Ver coach' abajo)">
+          <EyeOff className="h-4 w-4" />
         </button>
         <button onClick={() => setOpen(false)} className="text-muted-foreground hover:text-foreground p-1.5 rounded-md hover:bg-muted" title="Cerrar">
           <X className="h-4 w-4" />
