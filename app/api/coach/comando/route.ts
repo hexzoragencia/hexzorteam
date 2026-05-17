@@ -1023,11 +1023,13 @@ export async function POST(req: Request) {
         type: "text",
         text: (texto || "Analiza estas imágenes y extrae los datos del producto.")
           + (imagenesB64.length > 1
-            ? `\n\n[Hay ${imagenesB64.length} imágenes adjuntas, numeradas del 1 al ${imagenesB64.length} en el orden enviado. Una puede ser un pantallazo con DATOS (Dropi/Shopify) y otra la FOTO LIMPIA del producto. Para guardar la foto del producto, indica imagen_indice (1-based) en la herramienta.]`
+            ? `\n\n[Hay ${imagenesB64.length} imágenes. Cada una va precedida por su número ("📸 Imagen N"). Normalmente UNA es el pantallazo con DATOS (Dropi/Shopify) y OTRA es la foto limpia del producto. OBLIGATORIO: al crear/actualizar el producto pon imagen_indice = el número de la imagen que es la FOTO LIMPIA del producto (la que NO tiene texto ni interfaz, solo el producto).]`
             : ""),
       }];
-      imagenesB64.forEach((img: string) => {
+      imagenesB64.forEach((img: string, idx: number) => {
         const dataUrl = img.startsWith("data:") ? img : `data:image/png;base64,${img}`;
+        // Etiqueta de texto ANTES de cada imagen: el modelo asocia mejor el número.
+        partes.push({ type: "text", text: `📸 Imagen ${idx + 1}:` });
         partes.push({ type: "image_url", image_url: { url: dataUrl, detail: "high" } });
       });
       userContent = partes;
@@ -1082,10 +1084,16 @@ export async function POST(req: Request) {
   }
 }
 
-// Devuelve el data URL de la imagen adjunta en el índice 1-based indicado.
+// Devuelve el data URL de la imagen para usar como foto del producto.
+// Usa el índice (1-based) que indicó la IA; si no lo dio pero hay 2+ imágenes,
+// asume que la ÚLTIMA es la foto (lo normal: primero datos, luego la foto).
 function imagenPorIndice(indice: any, imagenes: string[]): string | null {
-  const i = Number(indice);
-  if (!i || !Number.isFinite(i) || !imagenes?.length) return null;
+  if (!imagenes?.length) return null;
+  let i = Number(indice);
+  if (!i || !Number.isFinite(i)) {
+    if (imagenes.length >= 2) i = imagenes.length; // fallback: la última
+    else return null;
+  }
   const img = imagenes[i - 1];
   if (!img) return null;
   return img.startsWith("data:") ? img : `data:image/jpeg;base64,${img}`;
