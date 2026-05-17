@@ -4,6 +4,32 @@ import { createClient } from "@/lib/supabase/server";
 import { hoyIso } from "@/lib/fechas";
 import { registrarCampana } from "@/lib/campanas";
 import { getOpenAIKeyParaEspacio } from "@/lib/openai-key";
+import { calcularPrecio, DEFAULT_COUNTRIES } from "@/lib/calc";
+
+// Resuelve la config de país (de paises_config o la default) para que el
+// coach calcule precios igual que la Calculadora.
+async function getConfigPais(sb: any, paisProducto: string | null) {
+  const code = (paisProducto || "CO").toUpperCase();
+  try {
+    const { data } = await sb.from("paises_config").select("*");
+    const fromDb = (data ?? []).find((p: any) => p.code === code);
+    if (fromDb) return fromDb;
+  } catch { /* usa default */ }
+  return DEFAULT_COUNTRIES.find(p => p.code === code)
+    ?? DEFAULT_COUNTRIES.find(p => p.code === "CO")
+    ?? DEFAULT_COUNTRIES[0];
+}
+
+// Dado un costo de proveedor + país, devuelve los 3 precios de la calculadora.
+async function preciosDesdeCosto(sb: any, costo: number, pais: string | null) {
+  const cfg = await getConfigPais(sb, pais);
+  const r = calcularPrecio(costo, cfg as any);
+  return {
+    precio_final: Math.round(r.precio_venta),
+    precio_2und: r.precio_2und,
+    precio_x3: r.precio_3und,
+  };
+}
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -197,8 +223,13 @@ OBSERVACIONES:
 
 # REGLAS CRÍTICAS AL LEER CAPTURAS
 1. **NO inventes datos**. Si no ves el costo del proveedor en la imagen, NO pongas un número — déjalo en blanco.
+1b. **EL PRECIO DE DROPI ES EL COSTO, NO EL PRECIO DE VENTA**. El número/precio
+   que muestra Dropi es lo que TÚ le pagas al proveedor (el costo). SIEMPRE va
+   en costo_proveedor, NUNCA en precio_final. NO pongas precio_final ni
+   precio_2und ni precio_x3 desde la imagen — el sistema los calcula solo con
+   la Calculadora (según el país) y te los confirma. Tú solo pasa costo_proveedor.
 2. Detecta qué tipo de captura es (Dropi, Shopify admin, TikTok Ad Library, Meta Ad Library, foto del producto, screenshot del proveedor).
-3. Extrae SOLO lo que VES claramente: nombre del producto, costo proveedor, precio sugerido, stock, plataforma, país.
+3. Extrae SOLO lo que VES claramente: nombre del producto, costo proveedor (= precio que pide el proveedor), stock, plataforma, país.
 3b. **LINK DE DROPI**: si la captura es de Dropi y se ve la URL en la barra de
    direcciones del navegador (ej: app.dropi.co/dashboard/product-details/12345),
    cópiala TAL CUAL en el campo dropi_url. Si solo ves el ID del producto, ponlo
@@ -1388,22 +1419,31 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
       fecha_activacion_fb: args.fecha_activacion_fb || null,
       observacion: args.observacion || null,
     };
+    // El precio de Dropi es el COSTO del proveedor, NO el precio de venta.
+    // Calculamos los 3 precios reales con la lógica de la Calculadora.
+    let precioMsg = "";
+    if (payload.costo_proveedor && Number(payload.costo_proveedor) > 0) {
+      const pr = await preciosDesdeCosto(sb, Number(payload.costo_proveedor), payload.pais);
+      payload.precio_final = pr.precio_final;
+      payload.precio_2und = pr.precio_2und;
+      payload.precio_x3 = pr.precio_x3;
+      precioMsg = ` 💰 Precios calculados: 1u $${pr.precio_final.toLocaleString("es-CO")} · 2u $${pr.precio_2und.toLocaleString("es-CO")} · 3u $${pr.precio_x3.toLocaleString("es-CO")}.`;
+    }
     const { data, error } = await sb.from("emp_productos").insert(payload).select("id, nombre, estado").single();
     if (error) throw new Error(error.message);
     const faltantes: string[] = [];
     if (!payload.costo_proveedor) faltantes.push("costo proveedor");
-    if (!payload.precio_final) faltantes.push("precio");
     if (!payload.proveedor) faltantes.push("proveedor");
     if (!payload.link_landing) faltantes.push("landing");
     const faltMsg = faltantes.length ? ` ⚠️ Faltan: ${faltantes.join(", ")}.` : "";
-    return `✅ Creé "${data.nombre}" en estado "${data.estado}".${faltMsg}`;
+    return `✅ Creé "${data.nombre}" en estado "${data.estado}".${precioMsg}${faltMsg}`;
   }
 
   if (fn === "actualizar_producto") {
     const q = String(args.texto_busqueda ?? "").trim().toLowerCase();
     if (!q) throw new Error("Falta texto_busqueda");
     const { data: matches } = await sb.from("emp_productos")
-      .select("id, nombre, observacion").eq("espacio_id", espacioId).ilike("nombre", `%${q}%`).limit(5);
+      .select("id, nombre, observacion, pais").eq("espacio_id", espacioId).ilike("nombre", `%${q}%`).limit(5);
     if (!matches || matches.length === 0) return `No encontré ningún producto con "${args.texto_busqueda}".`;
     if (matches.length > 1) {
       return `Hay ${matches.length} productos con ese nombre: ${matches.map((m: any) => `"${m.nombre}"`).join(", ")}. Sé más específico.`;
@@ -1424,11 +1464,21 @@ async function ejecutarAccion(sb: any, espacioId: string, fn: string, args: any,
       const prev = (prod.observacion ?? "").trim();
       updates.observacion = prev ? `${prev}\n\n— ${args.observacion_append}` : args.observacion_append;
     }
+    // Si cambió el costo del proveedor, recalcular los 3 precios con la Calculadora.
+    let precioMsg = "";
+    if (updates.costo_proveedor !== undefined && Number(updates.costo_proveedor) > 0) {
+      const paisCalc = updates.pais ?? prod.pais ?? "CO";
+      const pr = await preciosDesdeCosto(sb, Number(updates.costo_proveedor), paisCalc);
+      updates.precio_final = pr.precio_final;
+      updates.precio_2und = pr.precio_2und;
+      updates.precio_x3 = pr.precio_x3;
+      precioMsg = ` 💰 Recalculé precios: 1u $${pr.precio_final.toLocaleString("es-CO")} · 2u $${pr.precio_2und.toLocaleString("es-CO")} · 3u $${pr.precio_x3.toLocaleString("es-CO")}.`;
+    }
     if (Object.keys(updates).length === 0) return "No me diste qué campos cambiar.";
     const { error } = await sb.from("emp_productos").update(updates).eq("id", prod.id);
     if (error) throw new Error(error.message);
     const cambios = Object.keys(updates).join(", ");
-    return `✏️ Actualicé "${prod.nombre}" (${cambios}).`;
+    return `✏️ Actualicé "${prod.nombre}" (${cambios}).${precioMsg}`;
   }
 
   if (fn === "cambiar_estado_producto") {
