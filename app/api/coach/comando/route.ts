@@ -240,7 +240,16 @@ Si solo hay pantallazo de datos (sin foto limpia aparte), NO pongas imagen_indic
    en costo_proveedor, NUNCA en precio_final. NO pongas precio_final ni
    precio_2und ni precio_x3 desde la imagen — el sistema los calcula solo con
    la Calculadora (según el país) y te los confirma. Tú solo pasa costo_proveedor.
-2. Detecta qué tipo de captura es (Dropi, Shopify admin, TikTok Ad Library, Meta Ad Library, foto del producto, screenshot del proveedor).
+2. Detecta qué tipo de captura es (Dropi, Shopify, TikTok Ad Library, Meta Ad Library, Google/Google Shopping, Alibaba, AliExpress, Amazon, foto del producto, screenshot del proveedor).
+2b. **REGLA DE ESTADO POR FUENTE (MUY IMPORTANTE)**:
+   - Si la captura es de **DROPI** → estado = "nuevo" (es proveedor real, listo para testear).
+   - Si la captura es de **Shopify, Google/Google Shopping, Alibaba, AliExpress,
+     Amazon, Mercado Libre, sitios de competencia o cualquier tienda online
+     que NO sea Dropi** → estado = **"investigado"** (es investigación de
+     mercado: viste un producto interesante en otro lado pero todavía no
+     tienes proveedor en Dropi ni vas a testear). Pon el link de esa tienda
+     en link_referencia.
+   - Si el usuario dice explícitamente otro estado, respétalo.
 3. Extrae SOLO lo que VES claramente: nombre del producto, costo proveedor (= precio que pide el proveedor), stock, plataforma, país.
 3b. **LINK DE DROPI**: si la captura es de Dropi y se ve la URL en la barra de
    direcciones del navegador (ej: app.dropi.co/dashboard/product-details/12345),
@@ -666,7 +675,7 @@ const tools: any[] = [
       parameters: {
         type: "object",
         properties: {
-          estado: { type: "string", enum: ["nuevo", "testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Filtrar por estado, opcional" },
+          estado: { type: "string", enum: ["investigado", "nuevo", "testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Filtrar por estado, opcional" },
           q: { type: "string", description: "Búsqueda por nombre o proveedor, opcional" },
         },
       },
@@ -698,7 +707,7 @@ const tools: any[] = [
           imagen_indice: { type: "integer", description: "Si el usuario adjuntó VARIAS imágenes y una es la FOTO LIMPIA del producto (no el pantallazo de datos), pon aquí su número (1 = primera imagen enviada). El sistema la guardará como foto del producto." },
           plataforma: { type: "string", enum: ["TT", "FB", "TT+FB", "Otro"] },
           tipo: { type: "string", enum: ["dropshipping", "importacion", "local", "otro"] },
-          estado: { type: "string", enum: ["nuevo", "testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Default 'nuevo' si no se especifica" },
+          estado: { type: "string", enum: ["investigado", "nuevo", "testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"], description: "Default 'nuevo' si no se especifica" },
           fecha_activacion_tt: { type: "string", description: "YYYY-MM-DD si ya está activo en TikTok" },
           fecha_activacion_fb: { type: "string", description: "YYYY-MM-DD si ya está activo en Facebook" },
           observacion: { type: "string", description: "Observación estratégica, hipótesis, ángulo, público objetivo, recomendaciones — todo lo no estructurado" },
@@ -750,7 +759,7 @@ const tools: any[] = [
         type: "object",
         properties: {
           texto_busqueda: { type: "string", description: "Nombre o palabra clave del producto" },
-          nuevo_estado: { type: "string", enum: ["nuevo", "testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"] },
+          nuevo_estado: { type: "string", enum: ["investigado", "nuevo", "testeo", "aprendizaje", "validado", "winner", "apagado", "descartado"] },
           motivo: { type: "string", description: "Breve razón del cambio (se añade a observación)" },
         },
         required: ["texto_busqueda", "nuevo_estado"],
