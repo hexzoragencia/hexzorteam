@@ -130,6 +130,19 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
   const [form, setForm] = useState<FormState>(FORM_DEFAULT);
   const [saving, setSaving] = useState(false);
   const [menuAbierto, setMenuAbierto] = useState<string | null>(null);
+  // Drag & drop entre estados
+  const [draggingId, setDraggingId] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+
+  function onDropEnEstado(estado: Producto["estado"]) {
+    setDragOver(null);
+    const id = draggingId;
+    setDraggingId(null);
+    if (!id) return;
+    const p = productos.find(x => x.id === id);
+    if (!p || p.estado === estado) return;
+    cambiarEstado(id, estado);
+  }
 
   // Filtrado
   const filtrados = useMemo(() => {
@@ -288,15 +301,20 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
             const s = stats[v];
             const activo = filtroEstado === v;
             const total = filtroEstado === "todos" ? productos.length : (stats[filtroEstado]?.count ?? 0);
+            const esDropOver = dragOver === v;
             return (
               <div key={v} className="flex items-stretch">
                 <button
                   onClick={() => setFiltroEstado(activo ? "todos" : v)}
+                  onDragOver={(ev) => { if (draggingId) { ev.preventDefault(); setDragOver(v); } }}
+                  onDragLeave={(ev) => { if (!ev.currentTarget.contains(ev.relatedTarget as Node)) setDragOver(d => d === v ? null : d); }}
+                  onDrop={(ev) => { ev.preventDefault(); onDropEnEstado(v as Producto["estado"]); }}
                   className={cn(
                     "flex-1 group relative text-left rounded-xl border bg-card p-3 transition-all",
                     activo
                       ? cn(e.border, e.bg, "shadow-md")
                       : "border-border hover:border-primary/30 hover:shadow-sm",
+                    esDropOver && cn(e.border, e.bg, "ring-2 border-dashed scale-[1.02]"),
                   )}
                 >
                   <div className="flex items-center gap-2">
@@ -339,15 +357,20 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
             const e = getEstado(v);
             const s = stats[v];
             const activo = filtroEstado === v;
+            const esDropOver = dragOver === v;
             return (
               <button
                 key={v}
                 onClick={() => setFiltroEstado(activo ? "todos" : v)}
+                onDragOver={(ev) => { if (draggingId) { ev.preventDefault(); setDragOver(v); } }}
+                onDragLeave={(ev) => { if (!ev.currentTarget.contains(ev.relatedTarget as Node)) setDragOver(d => d === v ? null : d); }}
+                onDrop={(ev) => { ev.preventDefault(); onDropEnEstado(v as Producto["estado"]); }}
                 className={cn(
                   "text-[11px] px-3 py-1.5 rounded-full border transition inline-flex items-center gap-1.5",
                   activo
                     ? cn(e.border, e.bg, e.text, "font-medium")
                     : "bg-card border-border text-muted-foreground hover:border-primary/30",
+                  esDropOver && cn(e.border, e.bg, e.text, "border-dashed scale-110 font-medium"),
                 )}
               >
                 <span className={cn("w-1.5 h-1.5 rounded-full", e.dot)}></span>
@@ -405,6 +428,9 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
               onEditar={() => abrirEditar(p)}
               onBorrar={() => borrar(p.id, p.nombre)}
               onCambiarEstado={(nuevo) => cambiarEstado(p.id, nuevo)}
+              arrastrando={draggingId === p.id}
+              onDragStart={() => setDraggingId(p.id)}
+              onDragEnd={() => { setDraggingId(null); setDragOver(null); }}
             />
           ))}
         </div>
@@ -673,11 +699,14 @@ function ProductoCard({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
 // ============================================================
 // FILA DE PRODUCTO — layout horizontal full-width tipo lista premium
 // ============================================================
-function ProductoFila({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEditar, onBorrar, onCambiarEstado }: {
+function ProductoFila({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEditar, onBorrar, onCambiarEstado, arrastrando, onDragStart, onDragEnd }: {
   p: Producto; moneda: string; responsable: string | null;
   menuAbierto: boolean; onAbrirMenu: (open: boolean) => void;
   onEditar: () => void; onBorrar: () => void;
   onCambiarEstado: (n: Producto["estado"]) => void;
+  arrastrando?: boolean;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }) {
   const e = getEstado(p.estado);
   const Icon = e.icon;
@@ -686,7 +715,14 @@ function ProductoFila({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
   const tieneLinks = !!(p.link_landing || p.link_drive || p.link_creativos || p.dropi_url || p.link_referencia);
 
   return (
-    <div className="group relative rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all flex items-stretch">
+    <div
+      draggable
+      onDragStart={(ev) => { ev.dataTransfer.effectAllowed = "move"; onDragStart?.(); }}
+      onDragEnd={() => onDragEnd?.()}
+      className={cn(
+        "group relative rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-lg hover:shadow-primary/5 transition-all flex items-stretch cursor-grab active:cursor-grabbing",
+        arrastrando && "opacity-40 ring-2 ring-primary scale-[0.99]",
+      )}>
       {/* Banda lateral izquierda con color del estado */}
       <div className={cn("w-1 shrink-0", e.bar)}></div>
 
