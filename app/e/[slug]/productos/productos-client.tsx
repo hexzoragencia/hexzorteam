@@ -115,14 +115,17 @@ function iniciales(nombre?: string): string {
   return nombre.split(/\s+/).slice(0, 2).map(s => s[0]?.toUpperCase() ?? "").join("");
 }
 
-export function ProductosClient({ espacioId, moneda, productos: initial, miembros }: {
+export function ProductosClient({ espacioId, moneda, productos: initial, archivados: archivadosInit = [], miembros }: {
   espacioId: string; moneda: string;
   productos: Producto[];
+  archivados?: Producto[];
   miembros: { id: string; nombre: string }[];
 }) {
   const router = useRouter();
   const supabase = createClient();
   const [productos, setProductos] = useState<Producto[]>(initial);
+  const [archivados, setArchivados] = useState<Producto[]>(archivadosInit);
+  const [verPapelera, setVerPapelera] = useState(false);
   const [filtroEstado, setFiltroEstado] = useState<string>("todos");
   const [busqueda, setBusqueda] = useState("");
   const [editing, setEditing] = useState<string | null>(null);
@@ -225,10 +228,30 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
   }
 
   async function borrar(id: string, nombre: string) {
-    if (!confirm(`¿Borrar el producto "${nombre}"? Sus campañas asociadas quedarán huérfanas.`)) return;
+    if (!confirm(`¿Archivar "${nombre}"?\n\nSe quita del listado pero NO se borra — lo puedes recuperar en "Papelera" cuando quieras.`)) return;
+    const { error } = await supabase.from("emp_productos").update({ archivado: true }).eq("id", id);
+    if (error) { alert(error.message); return; }
+    const movido = productos.find(p => p.id === id);
+    setProductos(productos.filter(p => p.id !== id));
+    if (movido) setArchivados([{ ...movido, archivado: true } as any, ...archivados]);
+    router.refresh();
+  }
+
+  async function restaurar(id: string) {
+    const { error } = await supabase.from("emp_productos").update({ archivado: false }).eq("id", id);
+    if (error) { alert(error.message); return; }
+    const vuelto = archivados.find(p => p.id === id);
+    setArchivados(archivados.filter(p => p.id !== id));
+    if (vuelto) setProductos([{ ...vuelto, archivado: false } as any, ...productos]);
+    router.refresh();
+  }
+
+  async function eliminarDefinitivo(id: string, nombre: string) {
+    if (!confirm(`⚠️ Eliminar "${nombre}" DEFINITIVAMENTE.\n\nNo se podrá recuperar. ¿Continuar?`)) return;
+    if (!confirm(`Última confirmación: borrar "${nombre}" PARA SIEMPRE?`)) return;
     const { error } = await supabase.from("emp_productos").delete().eq("id", id);
     if (error) { alert(error.message); return; }
-    setProductos(productos.filter(p => p.id !== id));
+    setArchivados(archivados.filter(p => p.id !== id));
     router.refresh();
   }
 
@@ -259,10 +282,79 @@ export function ProductosClient({ espacioId, moneda, productos: initial, miembro
             </p>
           </div>
         </div>
-        <Button onClick={abrirCrear} className="shadow-md shadow-primary/20">
-          <Plus className="h-4 w-4 mr-1.5" /> Nuevo producto
-        </Button>
+        <div className="flex items-center gap-2">
+          {archivados.length > 0 && (
+            <button
+              onClick={() => setVerPapelera(v => !v)}
+              className={cn(
+                "h-9 px-3 rounded-lg border text-sm font-medium inline-flex items-center gap-1.5 transition",
+                verPapelera
+                  ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                  : "border-input bg-card hover:bg-muted text-muted-foreground hover:text-foreground"
+              )}
+              title="Productos archivados (puedes recuperarlos)"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              Papelera
+              <span className={cn(
+                "text-[10px] px-1.5 py-0.5 rounded font-mono",
+                verPapelera ? "bg-amber-500/20" : "bg-muted"
+              )}>{archivados.length}</span>
+            </button>
+          )}
+          <Button onClick={abrirCrear} className="shadow-md shadow-primary/20">
+            <Plus className="h-4 w-4 mr-1.5" /> Nuevo producto
+          </Button>
+        </div>
       </div>
+
+      {/* ====== PAPELERA (archivados) ====== */}
+      {verPapelera && (
+        <div className="rounded-xl border border-amber-500/40 bg-amber-500/5 overflow-hidden">
+          <div className="px-4 py-3 border-b border-amber-500/20 flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2">
+              <Trash2 className="h-4 w-4 text-amber-500" />
+              <h2 className="text-sm font-semibold">Papelera · productos archivados</h2>
+              <span className="text-[11px] text-muted-foreground">Estos productos NO están borrados, los puedes recuperar.</span>
+            </div>
+            <button onClick={() => setVerPapelera(false)} className="text-xs text-muted-foreground hover:text-foreground">
+              Ocultar
+            </button>
+          </div>
+          {archivados.length === 0 ? (
+            <p className="p-6 text-sm text-muted-foreground text-center">La papelera está vacía.</p>
+          ) : (
+            <div className="divide-y divide-amber-500/15">
+              {archivados.map(p => (
+                <div key={p.id} className="px-4 py-2.5 flex items-center gap-3">
+                  {p.imagen_url && (
+                    <img src={p.imagen_url} alt="" className="w-9 h-9 rounded-md object-cover border border-border" />
+                  )}
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium truncate">{p.nombre}</p>
+                    <p className="text-[11px] text-muted-foreground truncate">
+                      {p.proveedor ?? "—"}{p.pais ? ` · ${p.pais}` : ""}{` · estaba en ${getEstado(p.estado).label}`}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => restaurar(p.id)}
+                    className="h-8 px-3 rounded-md border border-input bg-card hover:bg-emerald-500/10 hover:border-emerald-500/40 hover:text-emerald-600 text-xs font-medium transition"
+                  >
+                    Restaurar
+                  </button>
+                  <button
+                    onClick={() => eliminarDefinitivo(p.id, p.nombre)}
+                    className="h-8 w-8 rounded-md text-muted-foreground hover:bg-destructive/10 hover:text-destructive flex items-center justify-center"
+                    title="Eliminar definitivamente"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ====== BUSCADOR ====== */}
       <div className="relative">
@@ -686,7 +778,7 @@ function ProductoCard({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
             <button onClick={onEditar} title="Editar" className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-muted hover:text-foreground">
               <Pencil className="h-3.5 w-3.5" />
             </button>
-            <button onClick={onBorrar} title="Borrar" className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
+            <button onClick={onBorrar} title="Archivar (recuperable)" className="h-7 w-7 rounded-md flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive">
               <Trash2 className="h-3.5 w-3.5" />
             </button>
           </div>
@@ -818,7 +910,7 @@ function ProductoFila({ p, moneda, responsable, menuAbierto, onAbrirMenu, onEdit
           </button>
           <button
             onClick={onBorrar}
-            title="Borrar"
+            title="Archivar (recuperable)"
             className="h-8 w-8 rounded-md flex items-center justify-center text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition"
           >
             <Trash2 className="h-3.5 w-3.5" />
