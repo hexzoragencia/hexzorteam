@@ -11,7 +11,7 @@ import {
   Beaker, Lightbulb, ShieldCheck, Trophy, XCircle, PauseCircle, Sparkles,
   ChevronLeft, ChevronRight as ChevronRight2, ChevronDown, Tag, DollarSign,
   Link as LinkIcon, Calendar as CalendarIcon, StickyNote, ArrowRight,
-  MoreHorizontal, User as UserIcon, Compass,
+  MoreHorizontal, User as UserIcon, Compass, RefreshCw,
 } from "lucide-react";
 import { cn, formatMoney } from "@/lib/utils";
 
@@ -24,7 +24,7 @@ type Producto = {
   dropi_url: string | null; link_referencia: string | null;
   imagen_url: string | null;
   plataforma: string | null; tipo: string | null;
-  estado: "investigado" | "nuevo" | "testeo" | "aprendizaje" | "validado" | "winner" | "descartado" | "apagado";
+  estado: "investigado" | "nuevo" | "testeo" | "aprendizaje" | "validado" | "winner" | "relanzamiento" | "descartado" | "apagado";
   fecha_activacion_tt: string | null; fecha_activacion_fb: string | null;
   observacion: string | null; created_at: string;
 };
@@ -36,12 +36,13 @@ const ESTADOS = [
   { value: "aprendizaje", label: "Aprendizaje",  short: "Aprende",  icon: Lightbulb,    dot: "bg-blue-500",    text: "text-blue-600 dark:text-blue-400",    bar: "bg-blue-500",    bg: "bg-blue-500/10",    border: "border-blue-500/30" },
   { value: "validado",    label: "Validado",     short: "Validado", icon: ShieldCheck,  dot: "bg-emerald-500", text: "text-emerald-600 dark:text-emerald-400", bar: "bg-emerald-500", bg: "bg-emerald-500/10", border: "border-emerald-500/30" },
   { value: "winner",      label: "Winner",       short: "Winner",   icon: Trophy,       dot: "bg-primary",     text: "text-primary",                        bar: "bg-primary",     bg: "bg-primary/10",     border: "border-primary/30" },
+  { value: "relanzamiento", label: "Relanzamiento", short: "Relanza.", icon: RefreshCw,    dot: "bg-orange-500",  text: "text-orange-600 dark:text-orange-400", bar: "bg-orange-500",  bg: "bg-orange-500/10",  border: "border-orange-500/30" },
   { value: "apagado",     label: "Apagado",      short: "Apagado",  icon: PauseCircle,  dot: "bg-zinc-400",    text: "text-zinc-500",                       bar: "bg-zinc-400",    bg: "bg-zinc-500/10",    border: "border-zinc-500/30" },
   { value: "descartado",  label: "Descartado",   short: "Descart.", icon: XCircle,      dot: "bg-rose-500",    text: "text-rose-600 dark:text-rose-400",    bar: "bg-rose-500",    bg: "bg-rose-500/10",    border: "border-rose-500/30" },
 ] as const;
 
 const ESTADOS_FLUJO = ["investigado", "nuevo", "testeo", "aprendizaje", "validado", "winner"] as const;
-const ESTADOS_INACTIVOS = ["apagado", "descartado"] as const;
+const ESTADOS_INACTIVOS = ["relanzamiento", "apagado", "descartado"] as const;
 
 const PAISES = [
   { value: "CO", flag: "🇨🇴", label: "Colombia" },
